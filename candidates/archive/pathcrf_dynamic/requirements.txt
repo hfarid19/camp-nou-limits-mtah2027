@@ -1,0 +1,6 @@
+# pathcrf_dynamic: exact versions used (Python 3.14, macOS arm64). No torch: the CRF is trained
+# and run in numpy / scipy. lightgbm runs LDE's evidence boosters (asserted against model_meta.json).
+numpy==2.5.4
+scipy==1.18.1
+pandas==3.1.1
+lightgbm==4.7.0

@@ -1,0 +1,134 @@
+{
+ "article": 28196177,
+ "version": 1,
+ "doi": "10.6084/m9.figshare.28196177.v1",
+ "license": "CC BY",
+ "files": [
+  {
+   "id": 51643472,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000001_DFL-MAT-J03WN1.xml",
+   "size": 11722,
+   "computed_md5": "37b0f85588c0acfb995fe633c7ac2e0d"
+  },
+  {
+   "id": 51643475,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000001_DFL-MAT-J03WMX.xml",
+   "size": 11930,
+   "computed_md5": "bc5d5b21dbcf36aa30f4cd0428309f6b"
+  },
+  {
+   "id": 51643478,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000002_DFL-MAT-J03WOH.xml",
+   "size": 11745,
+   "computed_md5": "b9710781d400dd812f62b0a6e3d7bce8"
+  },
+  {
+   "id": 51643490,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000002_DFL-MAT-J03WR9.xml",
+   "size": 11823,
+   "computed_md5": "5e2d580d3d8ed97e32959de90d04992b"
+  },
+  {
+   "id": 51643487,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000002_DFL-MAT-J03WPY.xml",
+   "size": 11922,
+   "computed_md5": "65a4568e4f374af94d3c1015cbc7c4f5"
+  },
+  {
+   "id": 51643484,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000002_DFL-MAT-J03WQQ.xml",
+   "size": 11932,
+   "computed_md5": "5979209af316a914ce57347d0633df6c"
+  },
+  {
+   "id": 51643481,
+   "name": "DFL_02_01_matchinformation_DFL-COM-000002_DFL-MAT-J03WOY.xml",
+   "size": 11952,
+   "computed_md5": "7b021e577fca917a63111d55cc29ae5b"
+  },
+  {
+   "id": 51643493,
+   "name": "DFL_03_02_events_raw_DFL-COM-000001_DFL-MAT-J03WMX.xml",
+   "size": 776578,
+   "computed_md5": "2d88e180a1f63c7e4157feb980fc7255"
+  },
+  {
+   "id": 51643496,
+   "name": "DFL_03_02_events_raw_DFL-COM-000001_DFL-MAT-J03WN1.xml",
+   "size": 612114,
+   "computed_md5": "83e8ed7ea8e8ebbbdc61f61ac3534008"
+  },
+  {
+   "id": 51643499,
+   "name": "DFL_03_02_events_raw_DFL-COM-000002_DFL-MAT-J03WOH.xml",
+   "size": 635747,
+   "computed_md5": "ab66e51512f39d06f49f27dd3b4c2f40"
+  },
+  {
+   "id": 51643502,
+   "name": "DFL_03_02_events_raw_DFL-COM-000002_DFL-MAT-J03WOY.xml",
+   "size": 683018,
+   "computed_md5": "64b1be01d6ff6848168efebd56f344b9"
+  },
+  {
+   "id": 51643505,
+   "name": "DFL_03_02_events_raw_DFL-COM-000002_DFL-MAT-J03WPY.xml",
+   "size": 698898,
+   "computed_md5": "f68482441d38723d69f244f896482803"
+  },
+  {
+   "id": 51643508,
+   "name": "DFL_03_02_events_raw_DFL-COM-000002_DFL-MAT-J03WQQ.xml",
+   "size": 732186,
+   "computed_md5": "b7e9d82af4034539d802319be6c57776"
+  },
+  {
+   "id": 51643511,
+   "name": "DFL_03_02_events_raw_DFL-COM-000002_DFL-MAT-J03WR9.xml",
+   "size": 681050,
+   "computed_md5": "c13bc5efa5eca4a022cc678210b87d5f"
+  },
+  {
+   "id": 51643514,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000001_DFL-MAT-J03WMX.xml",
+   "size": 418524833,
+   "computed_md5": "e4273a2adf5dbd9d4ec42def2f01905c"
+  },
+  {
+   "id": 51643517,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000001_DFL-MAT-J03WN1.xml",
+   "size": 391722803,
+   "computed_md5": "bacb2f609c1d1b0bfc906f6b9d4109f2"
+  },
+  {
+   "id": 51643520,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000002_DFL-MAT-J03WOH.xml",
+   "size": 348945715,
+   "computed_md5": "3efff25a86a61768e7d253b4bba137a3"
+  },
+  {
+   "id": 51643523,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000002_DFL-MAT-J03WOY.xml",
+   "size": 362567859,
+   "computed_md5": "4e1063e0a0ae499920cf68ac1aa3ab4e"
+  },
+  {
+   "id": 51643526,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000002_DFL-MAT-J03WPY.xml",
+   "size": 371688499,
+   "computed_md5": "e56ff1336a334f8da51110fbe7cab764"
+  },
+  {
+   "id": 51643529,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000002_DFL-MAT-J03WQQ.xml",
+   "size": 356219423,
+   "computed_md5": "9105bad987191d3c3c362c1fce9a4fcd"
+  },
+  {
+   "id": 51643532,
+   "name": "DFL_04_03_positions_raw_observed_DFL-COM-000002_DFL-MAT-J03WR9.xml",
+   "size": 372934140,
+   "computed_md5": "e060bb7d7a5a3bfbd15bbf9bc631024d"
+  }
+ ]
+}

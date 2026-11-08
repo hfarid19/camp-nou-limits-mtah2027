@@ -1,0 +1,7 @@
+# ballfree_dead: versions used to train the models and write submission.csv (Python 3.14, macOS arm64)
+numpy==2.5.4
+scipy==1.18.1
+pandas==3.1.1
+lightgbm==4.7.0
+# training of the (optional, off in the final config) TCN only; never imported at inference
+torch==2.15.0

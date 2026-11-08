@@ -1,0 +1,22 @@
+{
+ "kind": "soft",
+ "slugs": [
+  "temporal_tcn",
+  "ball_radar"
+ ],
+ "note": "selected on all 7 DFL games (stepwise, in-sample 0.6672; nested LOGO estimate 0.6605)",
+ "weights": [
+  0.6543809966846912,
+  0.6465093163003431
+ ],
+ "pool": "geo",
+ "decoder": {
+  "contrast_beta": 1.25,
+  "w_gap": 0.0
+ },
+ "opt": {
+  "pool": "geo",
+  "w": "score",
+  "dec": "c1"
+ }
+}

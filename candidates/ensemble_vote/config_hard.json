@@ -1,0 +1,17 @@
+{
+ "kind": "hard",
+ "slugs": [
+  "temporal_tcn",
+  "handover_mstcn",
+  "ball_radar"
+ ],
+ "note": "selected on all 7 DFL games (top3, in-sample 0.6633; nested LOGO estimate 0.6619)",
+ "weights": null,
+ "smooth": {
+  "min_poss_s": 1.0,
+  "min_dead_s": 1.0
+ },
+ "opt": {
+  "smooth": "m10"
+ }
+}

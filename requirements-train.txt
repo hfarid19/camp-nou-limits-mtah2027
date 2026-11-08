@@ -1,0 +1,3 @@
+# Retraining the models from the open DFL / IDSSE data (see each candidate README).
+-r requirements-submission.txt
+torch==2.15.0

@@ -1,0 +1,6 @@
+# hier_touch_decoder: exact versions used to write submission.csv (Python 3.14, macOS arm64).
+# The pipeline asserts the lightgbm version and model md5s against lde_frozen/MANIFEST.json.
+# Python version: .python-version (3.14.6).
+numpy==2.5.4
+pandas==3.1.1
+lightgbm==4.7.0

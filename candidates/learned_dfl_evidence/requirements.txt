@@ -1,0 +1,5 @@
+# learned_dfl_evidence: exact versions used to train the models and write submission.csv
+# (Python 3.14.6, macOS arm64). The pipeline asserts the lightgbm version against model_meta.json.
+numpy==2.5.4
+pandas==3.1.1
+lightgbm==4.7.0

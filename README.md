@@ -1,5 +1,22 @@
 # More than a Hack 2027 — Phase 1: Ball Possession
 
+> **Camp Nou Limits — reproducing our submission.** Unpack the data bundle into `data/` as
+> described in [DATA.md](DATA.md), then, with Python 3.14:
+>
+> ```bash
+> pip install -r requirements-submission.txt
+> python make_submission.py        # -> evaluation/results/camp_nou_limits.csv (byte-identical)
+> python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
+> ```
+>
+> The submission is [`candidates/ensemble_vote`](candidates/ensemble_vote/README.md): a per-frame
+> majority vote of three models trained only on open DFL / IDSSE Bundesliga tracking (CC BY 4.0),
+> namely [`temporal_tcn`](candidates/temporal_tcn/README.md),
+> [`handover_mstcn`](candidates/handover_mstcn/README.md) and
+> [`ball_radar`](candidates/ball_radar/README.md). It uses no labels from the provided game.
+> Candidates we built and dropped are in [`candidates/archive`](candidates/archive/README.md),
+> and the shared scorer is [`candidates/bench.py`](candidates/bench.py).
+
 **Organised by [Metrica Sports](https://metrica-sports.com), [FC Barcelona](https://www.fcbarcelona.com)
 and the [Mobile World Capital Barcelona](https://www.mwcbarcelona.com)**, at the Talent Arena in Barcelona.
 

@@ -1,0 +1,5 @@
+# temporal_tcn: exact versions (Python 3.14.6, macOS arm64)
+# inference (pipeline.py) needs numpy only (plus the repo's possession_pipeline / evaluation code)
+numpy==2.5.4
+# training only (train_tcn.py)
+torch==2.15.0
