@@ -23,7 +23,8 @@ and optionally, for the ensemble,
 the per-frame evidence the candidate's own decoder works from (posterior marginals for segment
 models), rows summing to 1 inside the graded blocks (anything finite outside them). With
 --save-probs DIR every scored game's matrix is written to DIR/<split>_<game>_<seed>.npy
-(float32) and the match's to DIR/match.npy.
+(float32) and the match's to DIR/match.npy, and the predicted codes to the same name with
+_codes.npy appended (for every candidate, with or without predict_proba).
 
 Usage
 
@@ -33,6 +34,8 @@ Usage
     python candidates/bench.py candidates/<name>/pipeline.py --dfl --folds folds.json
                                                                         # 7 open DFL games, LOGO
     ... --save-probs DIR                                                # also save predict_proba
+    python candidates/bench.py candidates/<name>/pipeline.py --dfl2 --folds folds.json
+                                                                        # DFL, degrade_v2 x 3 seeds
 
 Dev = Metrica open Sample Games 1 and 2, each degraded with two seeds to look like the
 competition's automatic tracking (see tune_on_sample_data.degrade). Labels are practice labels
@@ -49,6 +52,10 @@ games, so every Booster a candidate loads must be mapped in --folds (JSON: model
 unmapped model aborts the run instead of scoring on its own training data. The same holds for
 every torch.load(path) during --dfl (fold file fold_<kind>_<game index><ext>), and for any
 other DFL-trained file, which a candidate must load through candidates/dfl_folds.resolve().
+
+--dfl2 is the same, but degrades each game with degrade_v2 (fitted to the competition tracking's
+label-free statistics, see degrade_v2.py and match_stats.py) under 3 seeds, and reports the mean
+with a standard error over games. It is the primary selection bench from 2026-11-08 on.
 """
 
 import argparse
@@ -78,6 +85,7 @@ HOLDOUT = ["Sample_Game_3"]
 SEEDS = [2027, 2028]
 DFL_DIR = os.environ.get("BENCH_DFL_DIR", os.path.join(SCRATCH, "idsse", "npz"))
 DFL_SEEDS = [2027]
+DFL2_SEEDS = [2027, 2028, 2029]
 
 
 def load_candidate(path):
@@ -135,14 +143,47 @@ def dfl_prepared(match, seed):
             [tuple(int(v) for v in b) for b in z["blocks"]], float(z["sign"]))
 
 
-def save_probs(module, probs_dir, tag, args):
-    """Write predict_proba's (N, 3) matrix for one scored game, if the candidate has one."""
+def save_probs(module, probs_dir, tag, args, codes=None):
+    """Write predict_proba's (N, 3) matrix for one scored game, if the candidate has one, and the
+    predicted codes as <tag>_codes.npy (int8)."""
+    if probs_dir and codes is not None:
+        os.makedirs(probs_dir, exist_ok=True)
+        np.save(os.path.join(probs_dir, tag + "_codes.npy"), np.asarray(codes, np.int8))
     if not probs_dir or not hasattr(module, "predict_proba"):
         return
     p = np.asarray(module.predict_proba(*args), np.float32)
     assert p.shape == (len(args[2]), 3), p.shape
     os.makedirs(probs_dir, exist_ok=True)
     np.save(os.path.join(probs_dir, tag + ".npy"), p)
+
+
+def dfl2_prepared(match, seed):
+    """DFL game degraded with degrade_v2 (ball hidden around dead-ball runs), cached."""
+    import degrade_v2
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    path = os.path.join(CACHE_DIR, "dfl2_{}_{}.npz".format(match, seed))
+    if not os.path.isfile(path):
+        z = np.load(os.path.join(DFL_DIR, match + ".npz"))
+        status, poss, half = z["status"], z["poss"], z["half"]
+        gt = np.full(len(status), pm.X, np.int8)
+        gt[(status == 1) & (poss == 1)] = pm.H
+        gt[(status == 1) & (poss == 2)] = pm.A
+        gt[status == 0] = pm.D
+        blocks = []
+        for h in (1, 2):
+            idx = np.where((half == h) & (gt != pm.X))[0]
+            if len(idx):
+                blocks.append((len(blocks) + 1, int(idx[0]), int(idx[-1])))
+        players, ball = z["players"].astype(np.float64), z["ball"].astype(np.float64)
+        team = z["team_of_player"].astype(int)
+        slots, slot_team, dball = degrade_v2.degrade_v2(players, team, ball, status, gt != pm.X,
+                                                         np.random.default_rng(seed))
+        sign = tsd.attack_sign(tsd.Game(match, players, team, ball, []), blocks)
+        np.savez(path, slots=slots, slot_team=slot_team, ball=dball, gt=gt,
+                 blocks=np.array(blocks), sign=sign)
+    z = np.load(path)
+    return (z["slots"], z["slot_team"], z["ball"], z["gt"],
+            [tuple(int(v) for v in b) for b in z["blocks"]], float(z["sign"]))
 
 
 class _FoldBooster(object):
@@ -159,7 +200,7 @@ class _FoldBooster(object):
         return getattr(self.fold, name)
 
 
-def bench_dfl(path, folds, folds_path=None, probs_dir=None):
+def bench_dfl(path, folds, folds_path=None, probs_dir=None, v2=False):
     import hashlib
     import lightgbm as lgb
     import dfl_folds
@@ -214,13 +255,14 @@ def bench_dfl(path, folds, folds_path=None, probs_dir=None):
         try:
             module = load_candidate(path)
             guard_torch()
-            for seed in DFL_SEEDS:
-                slots, slot_team, ball, gt, blocks, sign = dfl_prepared(match, seed)
+            for seed in (DFL2_SEEDS if v2 else DFL_SEEDS):
+                slots, slot_team, ball, gt, blocks, sign = (dfl2_prepared if v2 else dfl_prepared)(match, seed)
                 args = (slots, slot_team, ball, sign, blocks, [], ("Home", "Away"), tsd.PITCH, tsd.FPS)
                 t0 = time.time()
                 pred = np.asarray(module.predict(*args), np.int8)
                 secs = time.time() - t0
-                save_probs(module, probs_dir, "dfl_{}_{}".format(match, seed), args)
+                save_probs(module, probs_dir, "{}_{}_{}".format("dfl2" if v2 else "dfl", match, seed), args,
+                           pred)
                 if "torch" in sys.modules and "patched" not in torch_real:
                     raise RuntimeError("import torch at the top of the candidate (or not at all) "
                                        "so bench --dfl can map torch.load to the fold models")
@@ -252,7 +294,7 @@ def bench(module, games, split="dev", probs_dir=None):
             t0 = time.time()
             pred = np.asarray(module.predict(*args), np.int8)
             secs = time.time() - t0
-            save_probs(module, probs_dir, "{}_{}_{}".format(split, name, seed), args)
+            save_probs(module, probs_dir, "{}_{}_{}".format(split, name, seed), args, pred)
             r = pm.evaluate(gt, pred, bootstrap_n=0)
             rows.append(dict(game=name, seed=seed, spellF1=round(r["spell_f1_mean"], 4),
                              macroF1=round(r["macro_f1"], 4),
@@ -275,7 +317,7 @@ def run_match(module, out_path, probs_dir=None):
     args = (players, slot_team, ball, sign_half1, blocks, tags, names,
             GAMES[GAME]["pitch"], GAMES[GAME]["fps"])
     codes = np.asarray(module.predict(*args), np.int8)
-    save_probs(module, probs_dir, "match", args)
+    save_probs(module, probs_dir, "match", args, codes)
     assert codes.shape == (n_frames,), codes.shape
     assert set(np.unique(codes)) <= {0, 1, 2, 3}
     letters = np.array(pm.LABELS)[codes]
@@ -301,15 +343,17 @@ def main():
     ap.add_argument("--holdout", action="store_true", help="score Game 3 (final check only)")
     ap.add_argument("--match", action="store_true", help="also write <candidate dir>/submission.csv")
     ap.add_argument("--dfl", action="store_true", help="score the 7 open DFL games (LOGO models)")
+    ap.add_argument("--dfl2", action="store_true", help="as --dfl, degrade_v2 x 3 seeds (primary)")
     ap.add_argument("--folds", default=None, help="JSON file: sha256 prefix -> [folds dir, kind]")
     ap.add_argument("--save-probs", default=None, metavar="DIR",
                     help="write each scored game's predict_proba matrix to DIR")
     args = ap.parse_args()
-    if args.dfl:
+    if args.dfl or args.dfl2:
         folds = json.load(open(args.folds)) if args.folds else {}
-        print("{} on DFL x seeds {}".format(args.candidate, DFL_SEEDS))
-        rows = bench_dfl(args.candidate, folds, args.folds, args.save_probs)
-        split = "dfl"
+        print("{} on DFL{} x seeds {}".format(args.candidate, " (degrade_v2)" if args.dfl2 else "",
+                                              DFL2_SEEDS if args.dfl2 else DFL_SEEDS))
+        rows = bench_dfl(args.candidate, folds, args.folds, args.save_probs, v2=args.dfl2)
+        split = "dfl2" if args.dfl2 else "dfl"
     else:
         module = load_candidate(args.candidate)
         games = HOLDOUT if args.holdout else DEV
@@ -319,7 +363,11 @@ def main():
     result = dict(candidate=args.candidate, split=split,
                   spellF1_mean=round(float(np.mean([r["spellF1"] for r in rows])), 4),
                   macroF1_mean=round(float(np.mean([r["macroF1"] for r in rows])), 4), rows=rows)
-    if args.match and not args.dfl:
+    games = sorted({r["game"] for r in rows})
+    if len(games) > 1:                                 # standard error over games (seeds averaged)
+        per_game = [np.mean([r["spellF1"] for r in rows if r["game"] == g]) for g in games]
+        result["spellF1_se"] = round(float(np.std(per_game, ddof=1) / np.sqrt(len(games))), 4)
+    if args.match and not (args.dfl or args.dfl2):
         module = load_candidate(args.candidate)
         out = os.path.join(os.path.dirname(os.path.abspath(args.candidate)), "submission.csv")
         result["match"] = run_match(module, out, args.save_probs)
