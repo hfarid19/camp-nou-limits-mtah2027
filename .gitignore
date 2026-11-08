@@ -86,3 +86,10 @@ candidates/**/tuning/_cache*/
 candidates/archive/**/model_*.txt
 candidates/archive/**/lde_model_*.txt
 candidates/archive/**/lde_frozen/
+
+# Variant weight packs of the shipped members (the shipped pack is model_tcn.npz /
+# tcn_weights.npz; variants are rebuilt by the commands in each README).
+candidates/handover_mstcn_v2/model_tcn_*.npz
+candidates/temporal_tcn_v2/tcn_weights_*.npz
+candidates/archive/**/model_tcn*.npz
+candidates/archive/**/tcn_weights*.npz

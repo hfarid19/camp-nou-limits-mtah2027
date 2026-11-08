@@ -1,0 +1,4 @@
+# inference (pipeline.py): numpy only
+numpy==2.5.4
+# training only (train_tcn.py); never imported at inference
+torch==2.15.0

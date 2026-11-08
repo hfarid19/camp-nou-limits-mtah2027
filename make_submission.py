@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Write Camp Nou Limits' submission CSV: the candidates/ensemble_vote majority vote.
+"""Write Camp Nou Limits' submission CSV: candidates/ensemble_ctrl_v2.
 
     pip install -r requirements-submission.txt
     python make_submission.py                    # writes evaluation/results/camp_nou_limits.csv
     python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 
 Reads only the competition input (ATD meta + raw tracking, Smart Tagging) through games.py and
-possession_pipeline's readers, runs candidates/ensemble_vote/pipeline.predict once and writes
-frame,label rows. No ground truth, no training data and no network access are needed: the vote's
-members (temporal_tcn, handover_mstcn, ball_radar, plus learned_dfl_evidence's smoothing) load
-their committed model files. The output is byte-identical to
-`candidates/bench.py candidates/ensemble_vote/pipeline.py --match`.
+possession_pipeline's readers, runs candidates/ensemble_ctrl_v2/pipeline.predict once and writes
+frame,label rows: a per-frame majority vote of temporal_tcn_v2, handover_mstcn_v2 and ball_radar,
+learned_dfl_evidence's 1 s smoothing, then the challenge's controlled-possession rule (opponent
+spells under 2 s handed back, candidates/control.py). No ground truth, no training data and no
+network access are needed: the members load their committed model files. The output is
+byte-identical to `candidates/bench.py candidates/ensemble_ctrl_v2/pipeline.py --match`.
 
 Numerical libraries are pinned to one thread before numpy is imported, so the floating-point
 summation order, and hence the file, does not depend on the machine.
@@ -36,9 +37,9 @@ import possession_pipeline as pp     # noqa: E402
 
 
 def load_ensemble():
-    """Load candidates/ensemble_vote/pipeline.py under its own name, as candidates/bench.py does:
+    """Load candidates/ensemble_ctrl_v2/pipeline.py under its own name, as candidates/bench.py does:
     the vote's member loader clears every module called "pipeline" while it loads the members."""
-    path = os.path.join(ROOT, "candidates", "ensemble_vote", "pipeline.py")
+    path = os.path.join(ROOT, "candidates", "ensemble_ctrl_v2", "pipeline.py")
     spec = importlib.util.spec_from_file_location("camp_nou_limits_ensemble", path)
     module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, os.path.dirname(path))

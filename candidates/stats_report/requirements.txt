@@ -1,0 +1,9 @@
+# Statistical review (candidates/stats_report). Python 3.14, run with OMP_NUM_THREADS=2.
+numpy==2.5.4
+scipy==1.18.1
+pandas==3.1.1
+scikit-learn==1.9.1
+statsmodels==0.15.0
+matplotlib==3.11.2
+# s00 / s03b also import the selftrain_ctrl offline harness, which needs the repo's own stack
+# (lightgbm 4.7.0, see requirements-train.txt).

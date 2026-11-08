@@ -1,0 +1,6 @@
+# decision_tree_b: exact versions used (Python 3.14.6, macOS arm64).
+# Inference (pipeline.py, tree_walk.py, decoder.py) needs numpy only.
+numpy==2.5.4
+# Training / audit only (train.py, train_scorecard.py, sweep.py, audit.py).
+scikit-learn==1.9.1
+scipy==1.18.1

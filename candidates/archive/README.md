@@ -25,7 +25,22 @@ Games 1 + 2 and the holdout is Sample Game 3, both degraded with `tune_on_sample
 | pitch_control | Spearman / Fernandez-Bornn pitch-control features added to the LightGBM evidence | 0.629 | 0.678 | 0.680 | inside noise; does not reduce under-splitting |
 | skillcorner_domain | SkillCorner open broadcast tracking as a second training domain | 0.619 | 0.685 | 0.683 | its possession labels change team less often than DFL's, which worsened under-splitting |
 
-The shipped submission is `candidates/ensemble_vote`: a majority vote of `temporal_tcn`,
-`handover_mstcn` and `ball_radar` (DFL 0.662 / dev 0.707 / holdout 0.705). A vote over all 11
-candidates scored only 0.630 on DFL, because the seven learned_dfl_evidence-like members make
-correlated errors and outvote the three diverse ones.
+A vote over all 11 candidates scored only 0.630 on DFL, because the seven
+learned_dfl_evidence-like members make correlated errors and outvote the three diverse ones.
+
+## Archived at the freeze (2026-11-08)
+
+These were scored on bench v2 (`--dfl2`, 7 DFL games x 3 seeds) with `ctrl_mean`, the mean spellF1
+against controlled-possession labels (T = 1, 2, 3 s). See `../README.md`.
+
+| slug | idea | ctrl_mean | why it was not shipped |
+|---|---|---|---|
+| ensemble_vote | hard vote of temporal_tcn, handover_mstcn, ball_radar (submission until 2026-11-08) | 0.696 | superseded by the control rule (ensemble_ctrl) |
+| ensemble_ctrl | ensemble_vote + control.fold 2.0 s on its output | 0.728 | superseded by ensemble_ctrl_v2 (retrained members) |
+| temporal_tcn, handover_mstcn | the old-degradation members | 0.671 / 0.678 | retrained on the realistic data as *_v2 |
+| selftrain_ctrl | transductive self-training on the scored game's own pseudo-labels | 0.735 | nested gain over ensemble_ctrl only +0.004 (p = 0.08), half explained by a simpler soft-add rule; extra complexity |
+| decision_tree | one CART tree on LDE features + LDE decoder + fold | 0.666 | interpretable but not competitive (LDE + fold is 0.698) |
+| decision_tree_a | dead tree + team tree with "near the ball" window features, team log-odds smoothed over 1 s | 0.694 | level with LDE + fold; used to explain what the models learn |
+| decision_tree_b | slide-sized rules: an 8-leaf dead-ball tree + an 8-point team scorecard | 0.654 | the readable explanation in TECHNICAL.md; 98% of the deep tree's score |
+| dtree_simple | separate dead / team trees, chosen by LOGO log-loss | 0.649 | as decision_tree |
+

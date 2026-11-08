@@ -1,0 +1,8 @@
+# decision_tree: exact versions used (Python 3.14.6, macOS arm64).
+# Inference (pipeline.py, tree_walk.py, decoder.py) needs numpy only (no scikit-learn, no torch).
+numpy==2.5.4
+# Training only (train.py); the shipped tree.npz is walked in plain numpy.
+scikit-learn==1.9.1
+scipy==1.18.1
+joblib==1.6.0
+threadpoolctl==3.8.0
