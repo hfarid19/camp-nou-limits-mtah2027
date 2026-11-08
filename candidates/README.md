@@ -73,3 +73,36 @@ expected once the ball is missing mainly at dead ball. Paired differences (same 
 are far tighter than the per-candidate SE. The ensemble beats `temporal_tcn` by +0.011 (paired
 SE 0.003, 17/21 wins), `ball_radar` by +0.025 (21/21) and `learned_dfl_evidence` by +0.041
 (20/21). Against `handover_mstcn` it is +0.005 ± 0.004 (15/21), which is not resolved.
+
+## Error budget and the "controlled possession" finding (2026-11-08)
+
+`error_budget.py` on the ensemble's bench-v2 predictions (21 game-seeds, 9183 true spells):
+
+- **Short spells account for most of the misses.** Recall is 0.03 for true spells under 1 s
+  (12.5% of all spells), 0.38 for 1-3 s (30.5%), 0.70 for 3-8 s and 0.91 above 8 s.
+- **Why spells are missed:** wrong team 41%, predicted dead 21%, merged into a longer same-team
+  spell 22%, boundary off 16%. In 64% of missed spells the ball was visible throughout.
+- **Oracle headroom:** true boundaries with our labels +0.072; true labels inside our boundaries
+  +0.029; perfect dead ball only +0.014; true sub-1 s spells pasted in +0.085; sub-2 s +0.169.
+  Every single model shows the same pattern.
+
+The DFL BallPossession flag flips on every touch. CHALLENGE.md defines a change of possession
+differently. It happens only when the opponent gains **controlled** possession: a touch without
+control, a deflection that does not intercept, and an aerial duel won without later control do not
+count, and the suggested proxy is "a player keeps the ball for a few seconds". `control.fold`
+applies that rule. Folding DFL spells shorter than T seconds back into the preceding possession
+gives these counts per 90 min:
+
+| T | 0 (raw DFL) | 1 s | 2 s | 3 s |
+|---|---|---|---|---|
+| possessions per 90 min | 412 | 344 | 272 | 224 |
+
+So part of the apparent under-splitting is an artefact of scoring against every-touch labels.
+From 2026-11-08 the bench therefore also reports `ctrl_mean`, the mean spellF1 against controlled
+labels with T = 1, 2, 3 s. T is not known, and the definition only bounds it as "a few seconds".
+`ctrl_mean` is the selection criterion.
+
+Applying the same rule to a candidate's own output (`ensemble_ctrl`) at CONTROL_S = 2.0 s raises the
+ensemble's ctrl_mean from 0.696 to 0.728. 2.0 s was best on the mean over T = 1-3 and on the
+worst case (a loss of at most 0.048 against the best threshold for any T). It costs 0.034 against
+raw every-touch labels, which the definition rules out.

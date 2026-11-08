@@ -53,6 +53,14 @@ unmapped model aborts the run instead of scoring on its own training data. The s
 every torch.load(path) during --dfl (fold file fold_<kind>_<game index><ext>), and for any
 other DFL-trained file, which a candidate must load through candidates/dfl_folds.resolve().
 
+--ctrl T (with --dfl / --dfl2) scores against "controlled possession" labels: every possession
+spell shorter than T seconds that follows the other team's possession is folded back into it
+(controlled_labels). CHALLENGE.md defines a change of possession as the opponent gaining
+CONTROLLED possession (a touch, a deflection or a won aerial duel without control does not
+count; proxy: "a player keeps the ball for a few seconds"), whereas the DFL flag flips on every
+touch. T is not known, so DFL runs always also report spellF1 against T = 1, 2, 3 s and their
+mean, ctrl_mean, which is the selection criterion from 2026-11-08.
+
 --dfl2 is the same, but degrades each game with degrade_v2 (fitted to the competition tracking's
 label-free statistics, see degrade_v2.py and match_stats.py) under 3 seeds, and reports the mean
 with a standard error over games. It is the primary selection bench from 2026-11-08 on.
@@ -186,6 +194,12 @@ def dfl2_prepared(match, seed):
             [tuple(int(v) for v in b) for b in z["blocks"]], float(z["sign"]))
 
 
+def controlled_labels(gt, T, fps=25):
+    """Ground truth under the challenge's control rule (control.fold on its own graded runs)."""
+    import control
+    return control.fold(gt, T, pm.valid_runs(gt), fps)
+
+
 class _FoldBooster(object):
     """A leave-one-game-out fold model standing in for a full model, cut to the full model's rounds."""
 
@@ -200,7 +214,7 @@ class _FoldBooster(object):
         return getattr(self.fold, name)
 
 
-def bench_dfl(path, folds, folds_path=None, probs_dir=None, v2=False):
+def bench_dfl(path, folds, folds_path=None, probs_dir=None, v2=False, ctrl=0.0):
     import hashlib
     import lightgbm as lgb
     import dfl_folds
@@ -266,13 +280,17 @@ def bench_dfl(path, folds, folds_path=None, probs_dir=None, v2=False):
                 if "torch" in sys.modules and "patched" not in torch_real:
                     raise RuntimeError("import torch at the top of the candidate (or not at all) "
                                        "so bench --dfl can map torch.load to the fold models")
+                ctrls = [pm.evaluate(controlled_labels(gt, T), pred, bootstrap_n=0)["spell_f1_mean"]
+                         for T in (1, 2, 3)]
+                gt = controlled_labels(gt, ctrl)
                 r = pm.evaluate(gt, pred, bootstrap_n=0)
                 rows.append(dict(game=match, seed=seed, spellF1=round(r["spell_f1_mean"], 4),
                                  macroF1=round(r["macro_f1"], 4),
+                                 ctrl=[round(v, 4) for v in ctrls], ctrl_mean=round(float(np.mean(ctrls)), 4),
                                  poss="{}/{}".format(r["n_pred_spells"], r["n_gt_spells"]),
                                  secs=round(secs, 1)))
-                print("  {:14s} seed {}  spellF1 {:.4f}  macroF1 {:.4f}  poss pred/gt {}  {:.1f}s".format(
-                    match, seed, r["spell_f1_mean"], r["macro_f1"], rows[-1]["poss"], secs))
+                print("  {:14s} seed {}  spellF1 {:.4f}  ctrl {:.4f}  macroF1 {:.4f}  poss pred/gt {}  {:.1f}s".format(
+                    match, seed, r["spell_f1_mean"], rows[-1]["ctrl_mean"], r["macro_f1"], rows[-1]["poss"], secs))
         finally:
             lgb.Booster = real
             os.environ.pop("BENCH_DFL_FOLD", None)
@@ -344,6 +362,8 @@ def main():
     ap.add_argument("--match", action="store_true", help="also write <candidate dir>/submission.csv")
     ap.add_argument("--dfl", action="store_true", help="score the 7 open DFL games (LOGO models)")
     ap.add_argument("--dfl2", action="store_true", help="as --dfl, degrade_v2 x 3 seeds (primary)")
+    ap.add_argument("--ctrl", type=float, default=0.0,
+                    help="score against controlled-possession labels with this T in seconds")
     ap.add_argument("--folds", default=None, help="JSON file: sha256 prefix -> [folds dir, kind]")
     ap.add_argument("--save-probs", default=None, metavar="DIR",
                     help="write each scored game's predict_proba matrix to DIR")
@@ -352,8 +372,8 @@ def main():
         folds = json.load(open(args.folds)) if args.folds else {}
         print("{} on DFL{} x seeds {}".format(args.candidate, " (degrade_v2)" if args.dfl2 else "",
                                               DFL2_SEEDS if args.dfl2 else DFL_SEEDS))
-        rows = bench_dfl(args.candidate, folds, args.folds, args.save_probs, v2=args.dfl2)
-        split = "dfl2" if args.dfl2 else "dfl"
+        rows = bench_dfl(args.candidate, folds, args.folds, args.save_probs, v2=args.dfl2, ctrl=args.ctrl)
+        split = ("dfl2" if args.dfl2 else "dfl") + ("_ctrl{:g}".format(args.ctrl) if args.ctrl else "")
     else:
         module = load_candidate(args.candidate)
         games = HOLDOUT if args.holdout else DEV
@@ -367,6 +387,10 @@ def main():
     if len(games) > 1:                                 # standard error over games (seeds averaged)
         per_game = [np.mean([r["spellF1"] for r in rows if r["game"] == g]) for g in games]
         result["spellF1_se"] = round(float(np.std(per_game, ddof=1) / np.sqrt(len(games))), 4)
+    if rows and "ctrl_mean" in rows[0]:
+        result["ctrl_mean"] = round(float(np.mean([r["ctrl_mean"] for r in rows])), 4)
+        result["ctrl_by_T"] = [round(float(np.mean([r["ctrl"][i] for r in rows])), 4) for i in range(3)]
+        print("ctrl_mean {} (T=1,2,3: {})".format(result["ctrl_mean"], result["ctrl_by_T"]))
     if args.match and not (args.dfl or args.dfl2):
         module = load_candidate(args.candidate)
         out = os.path.join(os.path.dirname(os.path.abspath(args.candidate)), "submission.csv")
