@@ -9,12 +9,13 @@
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/ensemble_ctrl_v2`](candidates/ensemble_ctrl_v2/README.md): a
+> The submission is [`candidates/ensemble_ctrl_v4`](candidates/ensemble_ctrl_v4/README.md): a
 > per-frame majority vote of three models trained only on open DFL / IDSSE Bundesliga tracking
 > (CC BY 4.0): [`temporal_tcn_v2`](candidates/temporal_tcn_v2/README.md),
 > [`handover_mstcn_v2`](candidates/handover_mstcn_v2/README.md) and
 > [`ball_radar`](candidates/ball_radar/README.md). The vote is followed by the challenge's
-> controlled-possession rule. It uses no labels from the provided game. The approach is described
+> controlled-possession rule, at the granularity the organisers' published scores imply, and
+> dead ball before each kick-off. It uses no labels from the provided game. The approach is described
 > in [TECHNICAL.md](TECHNICAL.md); the benches and every result are in
 > [`candidates/README.md`](candidates/README.md); candidates we built and dropped are in
 > [`candidates/archive`](candidates/archive/README.md).

@@ -64,6 +64,9 @@ mean, ctrl_mean, which is the selection criterion from 2026-11-08.
 --dfl2 is the same, but degrades each game with degrade_v2 (fitted to the competition tracking's
 label-free statistics, see degrade_v2.py and match_stats.py) under 3 seeds, and reports the mean
 with a standard error over games. It is the primary selection bench from 2026-11-08 on.
+
+--dfl3 is --dfl2 with degrade_v3: the same ball model, but player tracks also break when players
+come close together, as the competition tracker's do (62% of its tracklets end in a crowd).
 """
 
 import argparse
@@ -165,11 +168,13 @@ def save_probs(module, probs_dir, tag, args, codes=None):
     np.save(os.path.join(probs_dir, tag + ".npy"), p)
 
 
-def dfl2_prepared(match, seed):
-    """DFL game degraded with degrade_v2 (ball hidden around dead-ball runs), cached."""
+def dfl2_prepared(match, seed, version=2):
+    """DFL game degraded with degrade_v2 (ball hidden around dead-ball runs), cached. version=3:
+    degrade_v3 (same ball, occlusion-driven player fragmentation)."""
     import degrade_v2
+    import degrade_v3
     os.makedirs(CACHE_DIR, exist_ok=True)
-    path = os.path.join(CACHE_DIR, "dfl2_{}_{}.npz".format(match, seed))
+    path = os.path.join(CACHE_DIR, "dfl{}_{}_{}.npz".format(version, match, seed))
     if not os.path.isfile(path):
         z = np.load(os.path.join(DFL_DIR, match + ".npz"))
         status, poss, half = z["status"], z["poss"], z["half"]
@@ -184,7 +189,8 @@ def dfl2_prepared(match, seed):
                 blocks.append((len(blocks) + 1, int(idx[0]), int(idx[-1])))
         players, ball = z["players"].astype(np.float64), z["ball"].astype(np.float64)
         team = z["team_of_player"].astype(int)
-        slots, slot_team, dball = degrade_v2.degrade_v2(players, team, ball, status, gt != pm.X,
+        fn = degrade_v3.degrade_v3 if version == 3 else degrade_v2.degrade_v2
+        slots, slot_team, dball = fn(players, team, ball, status, gt != pm.X,
                                                          np.random.default_rng(seed))
         sign = tsd.attack_sign(tsd.Game(match, players, team, ball, []), blocks)
         np.savez(path, slots=slots, slot_team=slot_team, ball=dball, gt=gt,
@@ -270,12 +276,12 @@ def bench_dfl(path, folds, folds_path=None, probs_dir=None, v2=False, ctrl=0.0):
             module = load_candidate(path)
             guard_torch()
             for seed in (DFL2_SEEDS if v2 else DFL_SEEDS):
-                slots, slot_team, ball, gt, blocks, sign = (dfl2_prepared if v2 else dfl_prepared)(match, seed)
+                slots, slot_team, ball, gt, blocks, sign = (dfl2_prepared(match, seed, v2) if v2 else dfl_prepared(match, seed))
                 args = (slots, slot_team, ball, sign, blocks, [], ("Home", "Away"), tsd.PITCH, tsd.FPS)
                 t0 = time.time()
                 pred = np.asarray(module.predict(*args), np.int8)
                 secs = time.time() - t0
-                save_probs(module, probs_dir, "{}_{}_{}".format("dfl2" if v2 else "dfl", match, seed), args,
+                save_probs(module, probs_dir, "{}_{}_{}".format("dfl{}".format(v2) if v2 else "dfl", match, seed), args,
                            pred)
                 if "torch" in sys.modules and "patched" not in torch_real:
                     raise RuntimeError("import torch at the top of the candidate (or not at all) "
@@ -362,18 +368,20 @@ def main():
     ap.add_argument("--match", action="store_true", help="also write <candidate dir>/submission.csv")
     ap.add_argument("--dfl", action="store_true", help="score the 7 open DFL games (LOGO models)")
     ap.add_argument("--dfl2", action="store_true", help="as --dfl, degrade_v2 x 3 seeds (primary)")
+    ap.add_argument("--dfl3", action="store_true", help="as --dfl2, degrade_v3 (crowd fragmentation)")
     ap.add_argument("--ctrl", type=float, default=0.0,
                     help="score against controlled-possession labels with this T in seconds")
     ap.add_argument("--folds", default=None, help="JSON file: sha256 prefix -> [folds dir, kind]")
     ap.add_argument("--save-probs", default=None, metavar="DIR",
                     help="write each scored game's predict_proba matrix to DIR")
     args = ap.parse_args()
-    if args.dfl or args.dfl2:
+    ver = 3 if args.dfl3 else 2 if args.dfl2 else 0
+    if args.dfl or ver:
         folds = json.load(open(args.folds)) if args.folds else {}
-        print("{} on DFL{} x seeds {}".format(args.candidate, " (degrade_v2)" if args.dfl2 else "",
-                                              DFL2_SEEDS if args.dfl2 else DFL_SEEDS))
-        rows = bench_dfl(args.candidate, folds, args.folds, args.save_probs, v2=args.dfl2, ctrl=args.ctrl)
-        split = ("dfl2" if args.dfl2 else "dfl") + ("_ctrl{:g}".format(args.ctrl) if args.ctrl else "")
+        print("{} on DFL{} x seeds {}".format(args.candidate, " (degrade_v{})".format(ver) if ver else "",
+                                              DFL2_SEEDS if ver else DFL_SEEDS))
+        rows = bench_dfl(args.candidate, folds, args.folds, args.save_probs, v2=ver, ctrl=args.ctrl)
+        split = ("dfl{}".format(ver) if ver else "dfl") + ("_ctrl{:g}".format(args.ctrl) if args.ctrl else "")
     else:
         module = load_candidate(args.candidate)
         games = HOLDOUT if args.holdout else DEV
@@ -391,7 +399,7 @@ def main():
         result["ctrl_mean"] = round(float(np.mean([r["ctrl_mean"] for r in rows])), 4)
         result["ctrl_by_T"] = [round(float(np.mean([r["ctrl"][i] for r in rows])), 4) for i in range(3)]
         print("ctrl_mean {} (T=1,2,3: {})".format(result["ctrl_mean"], result["ctrl_by_T"]))
-    if args.match and not (args.dfl or args.dfl2):
+    if args.match and not (args.dfl or ver):
         module = load_candidate(args.candidate)
         out = os.path.join(os.path.dirname(os.path.abspath(args.candidate)), "submission.csv")
         result["match"] = run_match(module, out, args.save_probs)

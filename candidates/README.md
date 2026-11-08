@@ -1,7 +1,7 @@
 # Candidates and the bench
 
 Every possession pipeline we built sits behind one interface (`predict`, plus `predict_proba`
-for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `ensemble_ctrl_v2` and
+for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `ensemble_ctrl_v4` and
 the folders it needs (`temporal_tcn_v2`, `handover_mstcn_v2`, `ball_radar`,
 `learned_dfl_evidence`). Built and dropped: `archive/` (see its README). Analyses:
 `stats_report/` (statistical tests), `control_events/` (event-defined control labels).
@@ -149,3 +149,28 @@ claim, won tackle, carry or a 3 s hold), built from the open DFL event data
 - **A label-free warning (stats_report):** a classifier tells the match apart from every DFL game
   (AUC 0.99, mostly player-tracking differences), and the members disagree more on the match (6.2%
   of frames) than on any bench game (3-5%). Expect the real score to be below the bench.
+
+## Round 2 (2026-11-08 to 11-09): the ground truth is finer than we assumed
+
+- **Metrica's own rules** (`control_events/metrica_rules.py`): possession built from Metrica's
+  event tagging of its open sample games gives 305–331 possessions per 90, with 17–22% of spells
+  under 2 s. That implies T of about 1.2–1.5 s, not 2.
+- **The organisers' published shift scores pin it down** (EVALUATION.md: a perfect submission 3 / 8 /
+  25 frames late scores 0.982 / 0.893 / 0.654 on the full match). That length fingerprint lies
+  between the raw DFL flag and a 1 s fold, and matches Metrica's practice labels; our 2 s target
+  gives 0.999 / 0.989 / 0.797. The selection metric became **fine4** (`score_sel2.py`).
+- **Selection:** nested choice of member training variant x smoothing x fold on fine4 picked the
+  raw-flag members + 1.25 s fold: **`ensemble_ctrl_v4`**, +0.048 fine4 on all 21 game-seeds,
+  Metrica dev 0.708 (v2 0.664), holdout 0.707 (v2 0.678). See `ensemble_ctrl_v4/README.md`.
+- **Tried, no gain:**
+  - `archive/ensemble_ctrl_v3b`: a per-spell control classifier. It adds +0.002 nested on sel2,
+    no better than duration alone.
+  - Vote smoothing changes.
+  - A restart-team rule: the vote is already 96.5% right after a stoppage.
+- **`degrade_v3` / `bench --dfl3`:** player tracks break in crowds, as on the match (62% of
+  tracklet ends in a crowd vs 16% under v2). The shipped models do not lose on it, so they were
+  not retrained.
+- **Match disagreement:** the members' excess disagreement on the match (6.3% vs 3–4%) is almost
+  all dead vs live while the tracked ball is outside the pitch lines, in brief flickers.
+- **Kick-off:** the second half's pre-kick-off frames are now D (FAQ.md), via the "Kick Off
+  (Start)" tag.

@@ -1,0 +1,5 @@
+{
+ "variant": "delta",
+ "mode": "iter",
+ "thr": 0.55
+}

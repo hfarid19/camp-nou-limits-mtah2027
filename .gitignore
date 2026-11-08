@@ -91,5 +91,8 @@ candidates/archive/**/lde_frozen/
 # tcn_weights.npz; variants are rebuilt by the commands in each README).
 candidates/handover_mstcn_v2/model_tcn_*.npz
 candidates/temporal_tcn_v2/tcn_weights_*.npz
+# ... except the raw-flag variants, which the submission (ensemble_ctrl_v4) votes with
+!candidates/handover_mstcn_v2/model_tcn_raw.npz
+!candidates/temporal_tcn_v2/tcn_weights_raw.npz
 candidates/archive/**/model_tcn*.npz
 candidates/archive/**/tcn_weights*.npz

@@ -102,14 +102,27 @@ def stats(players, slot_team, ball, blocks, fps):
     for t, name in ((0, "home"), (1, "away")):
         out["visible_%s" % name] = float(vis[:, slot_team == t].sum(1).mean())
     out["slots_used"] = int(vis.any(0).sum())
-    lens = []
+    lens, ends = [], []
     for k in range(players.shape[1]):
         ks, ke = _runs(~np.isnan(players[:, k, 0]) & g)
         lens.extend((ke - ks) / fps)
+        ends.extend((k, e - 1) for e in ke if e < len(g) and g[e])   # ended inside graded play
     lens = np.asarray(lens)
     out["tracklets_per90"] = len(lens) * per90
+    out["tracklet_p10_s"] = float(np.percentile(lens, 10)) if len(lens) else 0.0
     out["tracklet_p50_s"] = float(np.median(lens)) if len(lens) else 0.0
+    out["tracklet_p90_s"] = float(np.percentile(lens, 90)) if len(lens) else 0.0
     out["tracklet_mean_s"] = float(lens.mean()) if len(lens) else 0.0
+    # share of tracklet ends with another tracked player within 2 m (occlusion-driven breaks)
+    crowded = []
+    for k, t in ends[::max(1, len(ends) // 4000)]:
+        d = np.linalg.norm(players[t] - players[t, k], axis=1)
+        d[k] = np.inf
+        crowded.append(bool(np.nanmin(np.where(np.isnan(d), np.inf, d)) < 2.0))
+    out["tracklet_end_crowd"] = float(np.mean(crowded)) if crowded else 0.0
+    sub = P[::5]
+    spd = np.linalg.norm(np.diff(sub, axis=0), axis=2) * fps / 5
+    out["stationary_share"] = float(np.nanmean(np.where(np.isnan(spd), np.nan, spd < 0.7)))
     jit = [_jitter(players[:, k], fps) for k in range(0, players.shape[1], 3)]
     out["player_jitter_m"] = float(np.nanmedian(jit))
     acc = [_accel(np.where(g[:, None], players[:, k], np.nan), fps) for k in range(0, players.shape[1], 3)]

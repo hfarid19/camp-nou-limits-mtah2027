@@ -44,3 +44,14 @@ against controlled-possession labels (T = 1, 2, 3 s). See `../README.md`.
 | decision_tree_b | slide-sized rules: an 8-leaf dead-ball tree + an 8-point team scorecard | 0.654 | the readable explanation in TECHNICAL.md; 98% of the deep tree's score |
 | dtree_simple | separate dead / team trees, chosen by LOGO log-loss | 0.649 | as decision_tree |
 
+
+## Archived in round 2 (2026-11-09)
+
+Scored on bench v2 with **fine4**, the mean spellF1 over the raw DFL flag, 0.5 s and 1 s folds,
+and event labels with a 1 s hold. fine4 replaced ctrl_mean once the organisers' published shift
+scores showed that the truth counts short possessions finely (`../ensemble_ctrl_v4/README.md`).
+
+| slug | idea | fine4 | sel2 | why it was not shipped |
+|---|---|---|---|---|
+| ensemble_ctrl_v2 | vote of members trained on 2 s-controlled targets + 2 s fold (submission 2026-11-08 to 11-09) | 0.662 | 0.749 | too coarse for the truth's length fingerprint; replaced by ensemble_ctrl_v4 (fine4 0.710) |
+| ensemble_ctrl_v3b | ensemble_ctrl_v2's vote with a per-spell LightGBM keep / hand-back classifier (touches, passes, duels, ball flight) instead of the fixed fold | | 0.751 (+0.002 nested) | no better than a duration threshold; content features separate the spells that matter no better than duration (AUC 0.786 vs 0.784) |
