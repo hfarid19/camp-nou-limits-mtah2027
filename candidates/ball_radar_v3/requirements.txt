@@ -1,0 +1,6 @@
+# ball_radar: exact versions used (Python 3.14.6, macOS arm64).
+# Inference (pipeline.py) needs numpy + lightgbm only (radar network runs in plain numpy).
+numpy==2.5.4
+lightgbm==4.7.0
+# training of the radar network only (train_radar.py, never imported by pipeline.py)
+torch==2.15.0

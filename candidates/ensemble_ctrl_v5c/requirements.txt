@@ -1,0 +1,4 @@
+# runs other candidates in-process; their requirements apply (numpy, scipy, lightgbm==4.7.0)
+numpy
+scipy
+lightgbm==4.7.0

@@ -1,8 +1,8 @@
 # Candidates and the bench
 
 Every possession pipeline we built sits behind one interface (`predict`, plus `predict_proba`
-for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `ensemble_ctrl_v4` and
-the folders it needs (`temporal_tcn_v2`, `handover_mstcn_v2`, `ball_radar`,
+for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `ensemble_ctrl_v5c` and
+the folders it needs (`temporal_tcn_v3`, `handover_mstcn_v3`, `ball_radar_v3`,
 `learned_dfl_evidence`). Built and dropped: `archive/` (see its README). Analyses:
 `stats_report/` (statistical tests), `control_events/` (event-defined control labels).
 
@@ -174,3 +174,26 @@ claim, won tackle, carry or a 3 s hold), built from the open DFL event data
   all dead vs live while the tracked ball is outside the pitch lines, in brief flickers.
 - **Kick-off:** the second half's pre-kick-off frames are now D (FAQ.md), via the "Kick Off
   (Start)" tag.
+
+## Round 3 (2026-11-09): a training-data fix, and a 64-game World Cup bench
+
+- **Bug:** `learned_dfl_evidence/make_dataset.attack_sign` took each game's attack direction from
+  the home team's mean x over half 1, which is wrong for DFL J03WR9. The home team kicks off from
+  the left at x 44.2 m but averages 54.9 m. The bench (kick-off positions) and the match
+  (metadata) were never affected.
+- **Fix:** `temporal_tcn_v3`, `handover_mstcn_v3` and `ball_radar_v3` are the same recipes
+  retrained on corrected data. In the vote with v4's rule (**`ensemble_ctrl_v5c`**) they give
+  fine4 0.717 (+0.008 ± 0.004, 17/21). The bit-identical J03WR9 fold models change by exactly 0,
+  so the gain is the fix, not retraining noise.
+- **PFF World Cup 2022:** 64 games, labels from PFF's own events (`pff/`). It is held out from
+  every choice:
+  - v4 beats v2 on every reading except the 2 s fold;
+  - v5c beats v4 by +0.006 ± 0.002 (45/64).
+- **Metrica:** the holdout (Game 3, once) gives v5c 0.719 vs v4 0.707. Metrica dev prefers v4
+  (−0.011, 2 games).
+- **Tried, no gain:**
+  - `ensemble_ctrl_v5a`: boundary snapping; short-spell insertion from probabilities, MS-TCN
+    boundary peaks or touches.
+  - `ensemble_ctrl_v5b` + `degrade_v4`: a calibrated dead-ball simulator; dead-ball clean-up
+    rules. On the harder bench v4's choices hold, including fold 1.25 s in 7/7 folds.
+  - Soft votes, extra members, another decoder.
