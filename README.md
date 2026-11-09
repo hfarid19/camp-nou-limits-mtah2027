@@ -9,11 +9,10 @@
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/ensemble_ctrl_v5c`](candidates/ensemble_ctrl_v5c/README.md): a
-> per-frame majority vote of three models trained only on open DFL / IDSSE Bundesliga tracking
-> (CC BY 4.0): [`temporal_tcn_v3`](candidates/temporal_tcn_v3/README.md),
-> [`handover_mstcn_v3`](candidates/handover_mstcn_v3/README.md) and
-> [`ball_radar_v3`](candidates/ball_radar_v3/README.md). The vote is followed by the challenge's
+> The submission is [`candidates/ensemble_ctrl_v6`](candidates/ensemble_ctrl_v6/README.md): a
+> per-frame majority vote of three models trained only on open tracking of other games (DFL / IDSSE
+> Bundesliga, CC BY 4.0, and PFF FC's free 2022 World Cup data): [`nn_pff_tcn`](candidates/nn_pff_tcn),
+> [`nn_pff`](candidates/nn_pff/README.md) and [`ball_radar_pff`](candidates/ball_radar_pff). The vote is followed by the challenge's
 > controlled-possession rule, at the granularity the organisers' published scores imply, and
 > dead ball before each kick-off. It uses no labels from the provided game. The approach is described
 > in [TECHNICAL.md](TECHNICAL.md); the benches and every result are in
