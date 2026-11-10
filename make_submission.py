@@ -1,22 +1,34 @@
 #!/usr/bin/env python3
-"""Write Camp Nou Limits' submission CSV: candidates/ensemble_ctrl_v6.
+"""Write Camp Nou Limits' submission CSV: candidates/final_f4b ("F4b").
 
     pip install -r requirements-submission.txt
     python make_submission.py                    # writes evaluation/results/camp_nou_limits.csv
     python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 
 Reads only the competition input (ATD meta + raw tracking, Smart Tagging) through games.py and
-possession_pipeline's readers, runs candidates/ensemble_ctrl_v6/pipeline.predict once and writes
-frame,label rows: a per-frame majority vote of three members with the temporal_tcn_v3,
-handover_mstcn_v3 and ball_radar_v3 recipes, retrained on the 7 DFL + 48 PFF World Cup 2022 games
-(nn_pff_tcn, nn_pff, ball_radar_pff), learned_dfl_evidence's 1 s smoothing, the
-controlled-possession rule (opponent spells under 1.25 s handed back, candidates/control.py), and
-dead ball before each half's kick-off. No ground truth, no training data and no network access
-are needed: the members load their committed model files. The output is byte-identical to
-`candidates/bench.py candidates/ensemble_ctrl_v6/pipeline.py --match`.
+possession_pipeline's readers, runs candidates/final_f4b/pipeline.predict once and writes
+frame,label rows. F4b runs four members, each trained on the 7 DFL + 48 PFF World Cup 2022 games:
+  - the label-smoothed TCN (nn_pff_tcn, tcn_ls.npz), averaged over the input and 4 jittered copies
+    of it, with its feature normalisation moved half-way towards the match's own label-free
+    feature statistics (candidates/adapt/member_tcn_tta4_a50.py);
+  - the MS-TCN at width 192 with label smoothing (nn_pff, mstcn_c192ls.npz);
+  - the ball radar with stacked LightGBM (ball_radar_pff);
+  - the ball-centred possessor-pointer network (nn_pointer, ptr_ballc.npz).
+It then decodes them with candidates/mbr_decode: per stretch of play it keeps the candidate label
+sequence (the members' hard vote under v6's rule of 1 s smoothing + 1.25 s controlled-possession
+fold, the vote under 11 other smoothing/fold rules, or a single member) with the highest expected
+spellF1 against samples from an HMM on the members' mean probabilities (fixed seed). Last, every
+frame before each half's kick-off is dead. No ground truth, no training data and no network access
+are needed: the members load their committed model files (numpy + LightGBM only).
 
-Numerical libraries are pinned to one thread before numpy is imported, so the floating-point
-summation order, and hence the file, does not depend on the machine.
+Numerical libraries are pinned to one thread before numpy is imported. That alone does not make
+floating-point results machine-independent; what we tested is that the file is byte-identical
+(sha256 228fe6a47e29a411746a97e9c7f758ad557c2f6acf768343b39932ede8ac4f30) on macOS arm64
+(Accelerate), Linux arm64 (OpenBLAS) and Linux x86-64 under Rosetta emulation (OpenBLAS), with the
+pinned requirements-submission.txt and Python 3.14.6. This script always runs single-threaded; the
+2- and 8-thread runs that gave the same file on macOS went through candidates/final_f4b/match_run.py
+(the same pipeline without the thread pin). Native x86-64 hardware was not tested. See
+TECHNICAL.md, "Reproduction".
 """
 
 import os
@@ -39,9 +51,9 @@ import possession_pipeline as pp     # noqa: E402
 
 
 def load_ensemble():
-    """Load candidates/ensemble_ctrl_v6/pipeline.py under its own name, as candidates/bench.py does:
+    """Load candidates/final_f4b/pipeline.py under its own name, as candidates/bench.py does:
     the vote's member loader clears every module called "pipeline" while it loads the members."""
-    path = os.path.join(ROOT, "candidates", "ensemble_ctrl_v6", "pipeline.py")
+    path = os.path.join(ROOT, "candidates", "final_f4b", "pipeline.py")
     spec = importlib.util.spec_from_file_location("camp_nou_limits_ensemble", path)
     module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, os.path.dirname(path))

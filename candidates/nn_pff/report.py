@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """All nn_pff / ensemble_ctrl_v6 result tables from saved codes (README numbers come from here).
 
-    python candidates/nn_pff/report.py [--holdout]
+    python candidates/nn_pff/report.py
 
 For each entry: DFL fine4 (bench --dfl2 LOGO codes, 7 games x 3 seeds), PFF out-of-fold fine3 and
 touch spellF1 (48 selection games), Metrica dev spellF1 where codes exist, each paired against
-the reference (mean difference, SE over games, wins). --holdout adds the 16-game PFF holdout table
-for the names that have holdout codes (run once).
+the reference (mean difference, SE over games, wins). The 16-game PFF holdout is never read here
+(it was scored once, by the coordinator, for the frozen v6; see ../ensemble_ctrl_v6/README.md).
 """
 import argparse
 import os
@@ -23,7 +23,8 @@ W = vo.WORK
 ENSEMBLES = [
     ("ensemble_ctrl_v5c (reference)", "ensemble_ctrl_v5c", "ensemble_ctrl_v5c", "ensemble_ctrl_v5c"),
     ("ensemble_ctrl_v4", "ensemble_ctrl_v4", "ensemble_ctrl_v4", "ensemble_ctrl_v4"),
-    ("v6 = v5c+PFF (live)", "ensemble_ctrl_v6_v5cpff", "ensemble_ctrl_v6_v5cpff", "ensemble_ctrl_v6_v5cpff"),
+    ("v6 members, 0.75 s rule (pipeline_v5cpff.py, live)", "ensemble_ctrl_v6_v5cpff", "ensemble_ctrl_v6_v5cpff", "ensemble_ctrl_v6_v5cpff"),
+    ("v6 frozen = members + v5c rule (pipeline.py, live)", "ensemble_ctrl_v6_v5crule", "ensemble_ctrl_v6_v5crule", None),
 ]
 MEMBERS = [
     ("temporal_tcn_v3", "temporal_tcn_v3", "m3_tcn", "v5c_temporal_tcn_v3_pipeline.py"),
@@ -38,11 +39,14 @@ GRID = [("e3_tcn", "TCN base C64 / RF 108 s"), ("gW_tcn", "TCN width C128"), ("g
         ("gW_mstcn", "MS-TCN width C128"), ("gX_mstcn", "MS-TCN context L12 crop 4096"),
         ("gWX_mstcn", "MS-TCN width + context")]
 AXES = [("t5c", "base (t5c)"), ("t5c_W", "C128 (width)"), ("o_seed1", "seed 1"), ("o_seed2", "seed 2"),
+        ("seeds3", "3-seed softmax average (t5c + seeds 1, 2)"),
         ("o_ema", "EMA 0.999"), ("o_focal2", "focal gamma 2"), ("o_transw1", "boundary-weighted CE (trans_w 1)"),
         ("o_cw1", "hand-over loss weight 1.0"), ("o_ls05", "label smoothing 0.05"), ("o_lr05", "lr x0.5"),
         ("o_lr2", "lr x2"), ("o_cos", "cosine schedule"), ("o_wd1e3", "weight decay 1e-3"),
         ("o_wdfl30", "DFL sampling share 0.30"), ("o_ftdfl", "fine-tune on DFL after joint"),
-        ("t5c_skc", "+ SkillCorner 15 games"), ("t5c_fp", "+ FOOTPASS 38 games"), ("m5c_skc", "MS-TCN + SkillCorner")]
+        ("t5c_skc", "+ SkillCorner 15 games"), ("t5c_fp", "+ FOOTPASS 38 games")]
+MAXES = [("m5c", "base (m5c)"), ("m5c_W", "C128 / Cr 64 (width)"), ("m5c_ls", "label smoothing 0.05"),
+         ("m5c_skc", "+ SkillCorner 15 games")]
 
 
 def dfl_rows(d):
@@ -98,13 +102,13 @@ def table(entries, ref_dfl, ref_pff, title):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--holdout", action="store_true")
     a = ap.parse_args()
     rd, rp = dfl_rows("ensemble_ctrl_v5c"), pff_rows("ensemble_ctrl_v5c")
     table(ENSEMBLES, rd, rp, "Ensembles (paired vs ensemble_ctrl_v5c)")
     table(MEMBERS, rd, rp, "Members alone (paired vs ensemble_ctrl_v5c)")
     for title, rows, base in (("Width x context (paired vs the grid base of the same family)", GRID, None),
-                              ("Optimisation / loss / data axes on the TCN recipe (paired vs t5c)", AXES, "t5c")):
+                              ("Optimisation / loss / data axes on the TCN recipe (paired vs t5c)", AXES, "t5c"),
+                              ("Variants of the MS-TCN recipe (paired vs m5c)", MAXES, "m5c")):
         ent = [(lab + " `" + n + "`", "nn_pff_dfl/" + n, n, None) for n, lab in rows]
         if base:
             table(ent, dfl_rows("nn_pff_dfl/" + base), pff_rows(base), title)
@@ -112,23 +116,6 @@ def main():
             for fam, b in (("TCN", "e3_tcn"), ("MS-TCN", "e1_base")):
                 sub = [e for e in ent if e[0].startswith(fam + " ")]
                 table(sub, dfl_rows("nn_pff_dfl/" + b), pff_rows(b), title + ": " + fam)
-    if a.holdout:
-        import bench_pff
-        import json
-        hold = json.load(open(os.path.join(vo.ARCH, "holdout_games.json")))["games"]
-        info = {g: (None, bench_pff.targets(g)) for g in hold}
-        ref = pff_rows("ensemble_ctrl_v5c_holdout", info)
-        print("\n## PFF holdout (16 games, scored once)")
-        for n in ("ensemble_ctrl_v5c_holdout", "ensemble_ctrl_v4_holdout", "ensemble_ctrl_v6_holdout"):
-            P = pff_rows(n, info)
-            if P:
-                line = "| {} | touch {:.4f} | fine3 {:.4f} | seq {:.4f} |".format(
-                    n, np.mean([r["raw"] for r in P.values()]), np.mean([r["fine3"] for r in P.values()]),
-                    np.mean([r["seq"] for r in P.values()]))
-                if ref and P is not ref:
-                    line += " fine3 vs v5c " + fmt_pair(*vo.paired_pff(P, ref, "fine3")) + \
-                        ", touch " + fmt_pair(*vo.paired_pff(P, ref, "raw")) + " |"
-                print(line)
 
 
 if __name__ == "__main__":

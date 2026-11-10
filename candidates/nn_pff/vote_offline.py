@@ -124,8 +124,9 @@ def met_scores(members, cfg):
 
 
 def skc_info(games=None):
-    """SkillCorner A-League bench (20 games, degrade_v2 seed 2027): report-only check, never used
-    for selection. Members trained with SKC games must be scored on the 5 SKC holdout games only."""
+    """SkillCorner A-League bench (20 games, degrade_v2 seed 2027). Written as a report-only check, but it
+    became a selection bench: it decided v6's rule and was a gate (and half the pick criterion) in rounds
+    4-5. Members trained with SKC games must be scored on the 5 SKC holdout games only."""
     def f():
         sys.path.insert(0, os.path.join(CAND, "skc"))
         import bench_skc

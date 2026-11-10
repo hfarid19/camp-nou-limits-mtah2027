@@ -1,8 +1,8 @@
 """ensemble_ctrl_v6, the final pick (identical to pipeline_v5crule.py): "v5c+PFF, v5c rule".
 ensemble_ctrl_v5c's three members with their exact recipes, retrained on the 7 DFL games + 48 PFF
 World Cup 2022 games (touch labels), voted with v5c's machinery AND v5c's rule. Chosen over the
-0.75 s rule after the v6 audit: on the SkillCorner A-League bench (never used for selection) the
-0.75 s rule was worse than v5c.
+0.75 s rule after the v6 audit: on the SkillCorner A-League bench (not used for selection before this
+decision, which made it a selection bench) the 0.75 s rule was worse than v5c.
 
 Members (tie-break order = DFL leave-one-game-out fine4, best first):
     nn_pff_tcn/pipeline_v5cpff.py   temporal_tcn_v3's TCN + LDE decoder   (weights tcn_v5cpff.npz)

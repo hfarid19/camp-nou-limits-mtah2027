@@ -1,4 +1,4 @@
-# ensemble_ctrl_v4: the vote retuned to the ground truth's possession granularity (submission)
+# ensemble_ctrl_v4: the vote retuned to the ground truth's possession granularity (an earlier submission)
 
 `pipeline.py` does four things in order:
 

@@ -1,0 +1,12 @@
+R5-2 label-free adaptation: variants fixed before any result (written 2026-11-09 ~20:40, before running anything).
+
+Idea 1 (per-game re-normalisation, candidates/adapt/renorm.py):
+  Applied to the NN members (TCN t5c / o_ls05, MS-TCN m5c / m5c_W) of v6 and lsw; radar_pff unchanged.
+  Game stats over the graded block frames, mirror-pooled; same code on every bench game (DFL LOGO folds use the fold model's mu/sd).
+  Variants: base (must reproduce saved codes), all_a25, all_a50, all_a100, mean_a100, flag_a50, flag_a100, auto_a100.
+  A-priori primary: all_a50 (both NN members). Also reported: the variant chosen NESTED on DFL (leave-one-DFL-game-out,
+  criterion = DFL fine4 of the lsw-based vote on the other 6 games); SkillCorner / Metrica never used to choose.
+Idea 2 (TTA): logged separately if run.
+Idea 3 (noisy student): logged separately; hyper-parameters fixed a priori.
+Decision: arch/round5_prereg.txt (route a or b), paired vs v6, lsw always reported. Every variant compared is logged
+in arch/r5_adapt/results_*.txt (multiplicity).

@@ -66,7 +66,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     W = {}
-    A = os.path.join(SCR, "arch", "ball_radar_pff")
+    A = bc.BRP_ARCH          # default $MTAH_WORK/arch/ball_radar_pff
     for k in args.radar:
         p = os.path.join(A, "radar_full.npz") if k == "full" else \
             os.path.join(A, "folds", "fold_pff_radar_{}.npz".format(k[3:]) if k.startswith("pff") else "fold_radar_{}.npz".format(k[3:]))

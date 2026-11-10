@@ -1,0 +1,45 @@
+Round 4 (cloud experiments) — decision rule, written 2026-11-09 before any round-4 result was seen.
+
+Reference: ensemble_ctrl_v6/pipeline.py (frozen, pushed). Also reported: pipeline_lsw.py (post-hoc v7 candidate).
+
+Candidates:
+- every ensemble built from round-4 members:
+  - 64-game PFF retrain;
+  - extra degradation seeds;
+  - MS-TCN label smoothing x width/context;
+  - full-attention transformer;
+  - ASFormer/Temba scaling;
+  - MOMENT, m5c_X / m5c_WX;
+- plus lsw;
+- always with v5c's rule (merge 1 s, fold 1.25 s, prekick_dead), no new rule search.
+
+Primary metric: DFL bench v2 LOGO fine4, paired over 21 game-seeds vs v6.
+Secondary metrics:
+- SkillCorner A-League fine3 over the 20 bench games;
+- Metrica dev (Sample Games 1+2).
+PFF out-of-fold is reported but not used; models trained on all 64 PFF games have no PFF score.
+
+Eligible if all hold:
+- DFL fine4 gain >= +0.005 and >= 2 SE (paired SE over 21);
+- SkillCorner fine3 not worse than v6 by more than 1 SE;
+- Metrica dev not worse than v6 by more than 0.010.
+
+Pick: the eligible candidate with the highest DFL fine4. Report how many candidates were compared, as a multiplicity note.
+
+Confirmation, run once, for the single pick only:
+- the 5 SkillCorner holdout games (SKC-1874553, 1899585, 1953632, 1986691, 2006229), fine3 vs v6. They were scored once before, by the +SKC data test (different models); v6 vs lsw has never been compared on them.
+- Ship if the pick is not worse than v6 there by more than 0.02 mean fine3 (5 games, so this only guards against a gross failure);
+- then the full freeze checks: determinism x2, validate, fresh clone, TECHNICAL.md, audit.
+
+If nothing is eligible: lsw vs v6 is decided by the same rule (it already meets the DFL and SkillCorner conditions), then the same confirmation.
+
+No evaluation/gt and no public 5 minutes for any of this. Nothing is pushed without the user.
+
+ADDENDUM 2026-11-09 11:05, before any round-4 result was seen:
+- The 5 SkillCorner holdout games are NOT fresh: they are inside the 20-game SkillCorner bench, which already compared v6 vs lsw (+0.0054, 13/20). So they can't confirm anything.
+- SkillCorner secondary metric: all 20 games as written, the same set used for v6's audit and for lsw, so every comparison is like-for-like.
+- Confirmation, run once for the single pick only, replaces the SkillCorner holdout step: the 13 FOOTPASS holdout games ($MTAH_WORK/footpass/holdout_games.json). No model has ever been scored on them (checked $MTAH_WORK/probs and arch).
+  - FOOTPASS data stays on the Mac (NDA); scoring is local only.
+  - Its ball is synthetic, so this is a paired sanity check: the pick vs v6, fine3 on the FOOTPASS touch labels.
+  - Ship if the pick is not worse than v6 there by more than 1 SE (paired over 13 games).
+  - If v6 can't be run on FOOTPASS within reason, there is no confirmation; then report that the pick rests on DFL/SkillCorner/Metrica alone.

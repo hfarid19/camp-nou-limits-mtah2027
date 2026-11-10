@@ -246,7 +246,10 @@ def bench_dfl(path, folds, folds_path=None, probs_dir=None, v2=False, ctrl=0.0):
     matches = sorted(f[:-4] for f in os.listdir(DFL_DIR) if f.endswith(".npz"))
     cand_dir = os.path.dirname(os.path.abspath(path))
     rows = []
+    only = [m for m in os.environ.get("BENCH_DFL_ONLY", "").split(",") if m]   # opt-in: score a subset (fold index stays global)
     for gi, match in enumerate(matches):
+        if only and match not in only:
+            continue
         def booster(*args, **kw):
             model_file = kw.get("model_file")
             if args or model_file is None:

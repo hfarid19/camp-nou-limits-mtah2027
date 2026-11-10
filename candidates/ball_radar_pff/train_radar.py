@@ -274,6 +274,9 @@ def main():
     import json
     with open(args.out + ".games.json", "w") as handle:
         json.dump(names, handle)
+    with open(args.out + ".train.json", "w") as handle:     # round 4: record the PFF-holdout opt-in
+        json.dump(dict(pff_holdout_trained=bc.ALLOW_HOLDOUT, spec=args.spec, iters=args.iters,
+                       device=args.device, games=len(names)), handle)
     print("saved", args.out, "{:.0f}s".format(time.time() - t0))
 
 

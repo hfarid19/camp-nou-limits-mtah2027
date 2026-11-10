@@ -1,9 +1,11 @@
 # Candidates and the bench
 
 Every possession pipeline we built sits behind one interface (`predict`, plus `predict_proba`
-for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `ensemble_ctrl_v5c` and
-the folders it needs (`temporal_tcn_v3`, `handover_mstcn_v3`, `ball_radar_v3`,
-`learned_dfl_evidence`). Built and dropped: `archive/` (see its README). Analyses:
+for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `final_f4b` (F4b, see its
+README) and the folders it needs (`mbr_decode`, `adapt`, `nn_pointer`, `nn_pff`, `nn_pff_tcn`,
+`ball_radar_pff`, `ensemble_ctrl_v6`, `learned_dfl_evidence`). Earlier submissions, in order:
+`ensemble_ctrl_v2`, `v4`, `v5c`, `v6`; the sections below are the history up to round 2, and
+rounds 3-5 are summarised in `../TECHNICAL.md`, section 6. Built and dropped: `archive/` (see its README). Analyses:
 `stats_report/` (statistical tests), `control_events/` (event-defined control labels).
 
 ## Benches

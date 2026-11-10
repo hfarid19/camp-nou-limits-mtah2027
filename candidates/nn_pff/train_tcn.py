@@ -206,11 +206,12 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     if ema is not None:
         model.load_state_dict(ema)
     model.to("cpu")
-    cfg = dict(cfg, device=device)
+    cfg = dict(cfg, device=device, pff_holdout_trained=D.allow_holdout())
     sdict = {k: v.detach().cpu().numpy().astype(np.float32) for k, v in model.state_dict().items()}
     meta = dict(mu=mu, sd=sd, ind=ind.astype(np.int64), dils=np.array(dils, np.int64), names=np.array(names),
                 kinds=np.array(kinds), change_prior=np.array(float(np.mean(np.concatenate([d[3][0] for d in data])))),
-                hold=np.array(-1), train_games=np.array(games), spec=np.array(spec), train_cfg=json.dumps(cfg))
+                hold=np.array(-1), train_games=np.array(games), spec=np.array(spec), train_cfg=json.dumps(cfg),
+                pff_holdout_trained=np.array(D.allow_holdout()))
     tmp = out_path[:-4] + ".tmp.npz"
     np.savez(tmp, **sdict, **meta)
     os.replace(tmp, out_path)

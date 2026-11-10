@@ -101,7 +101,8 @@ def export(model, mean, std, names, cfg, path, train_games, spec):
     tmp = path[:-4] + ".tmp.npz"
     np.savez(tmp, mean=mean.astype(np.float32), std=std.astype(np.float32), names=np.array(names),
              cfg=json.dumps({k: cfg[k] for k in ("C", "L", "Cr", "Lr", "S_c", "S_b")}),
-             train_games=np.array(train_games), spec=np.array(spec), train_cfg=json.dumps(cfg), **w)
+             train_games=np.array(train_games), spec=np.array(spec), train_cfg=json.dumps(cfg),
+             pff_holdout_trained=np.array(D.allow_holdout()), **w)
     os.replace(tmp, path)
 
 
@@ -250,7 +251,7 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     if ema is not None:
         model.load_state_dict(ema)
     model.to("cpu")
-    cfg = dict(cfg, device=device)
+    cfg = dict(cfg, device=device, pff_holdout_trained=D.allow_holdout())
     export(model, mean, std, names, cfg, out_path, games, spec)
     log("{} -> {} ({:.0f} min)".format(spec, out_path, (time.time() - t0) / 60))
 

@@ -27,6 +27,11 @@ The 16 holdout games (arch/nn_pff/holdout_games.json) are refused.
 ds_pff2 (the "v5c+PFF" retrain, inputs as in ds_v2s: degrade_v2 only):
     --out $MTAH_WORK/ds_pff2 --pff-seeds 41 42 43 --dfl-new-seeds --link-from $MTAH_WORK/ds_pff
 (seeds 41 / 42 are bit-identical to ds_pff's and hard-linked; DFL = ds_v2s seeds 41-43 only).
+
+Round 4 (the 16 holdout games are spent): --allow-holdout --holdout-games builds them too (or
+--allow-holdout --games <ids>); training on them also needs NN_PFF_ALLOW_HOLDOUT=1 (data.py).
+More degradation seeds: --pff-seeds 41 42 43 45 46 47 48 49 --dfl-new-seeds 45 46 47 48 49 (44 is
+the degrade_v4 seed, so it is skipped; every other seed is degrade_v2 as ds_pff2).
 """
 
 import argparse
@@ -145,7 +150,13 @@ def main():
     ap.add_argument("--pff-seeds", type=int, nargs="+", default=list(PFF_SEEDS))
     ap.add_argument("--dfl-new-seeds", type=int, nargs="*", default=list(DFL_NEW_SEEDS))
     ap.add_argument("--link-from", default=None, help="hard-link existing PFF files from this dataset")
+    ap.add_argument("--allow-holdout", action="store_true",
+                    help="round 4: the 16 PFF holdout games are spent and may be built")
+    ap.add_argument("--holdout-games", action="store_true", help="with --allow-holdout: build the 16 holdout games")
     args = ap.parse_args()
+    if args.holdout_games:
+        assert args.allow_holdout, "--holdout-games needs --allow-holdout"
+        args.games = sorted(holdout())
     for sub in ("ds", "raw"):
         os.makedirs(os.path.join(args.out, sub), exist_ok=True)
     hold = holdout()
@@ -163,7 +174,7 @@ def main():
                 jobs.append((os.path.join(WORK, "idsse", "npz", m + ".npz"), m, s, args.out))
     if args.only in (None, "PFF"):
         for gname in (args.games or selection_games()):
-            assert gname not in hold, "holdout game " + gname
+            assert args.allow_holdout or gname not in hold, "holdout game " + gname
             for s in args.pff_seeds:
                 if args.link_from:
                     src = [os.path.join(args.link_from, sub, "PFF-{}_{}.npz".format(gname, s)) for sub in ("ds", "raw")]
@@ -179,7 +190,8 @@ def main():
                 jobs.append((os.path.join(WORK, "pff_wc2022", "npz", "PFF-" + gname + ".npz"), "PFF-" + gname, s, args.out))
     with open(os.path.join(args.out, "config.json"), "w") as handle:
         json.dump(dict(pff_seeds=args.pff_seeds, dfl_link_seeds=DFL_LINK_SEEDS, dfl_new_seeds=args.dfl_new_seeds,
-                       v4_seeds=sorted(V4_SEEDS), stride=STRIDE), handle, indent=1)
+                       v4_seeds=sorted(V4_SEEDS), stride=STRIDE, allow_holdout=args.allow_holdout,
+                       games=args.games), handle, indent=1)
     if args.jobs <= 1:
         for j in jobs:
             print(job(j), flush=True)

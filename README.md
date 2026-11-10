@@ -9,15 +9,20 @@
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/ensemble_ctrl_v6`](candidates/ensemble_ctrl_v6/README.md): a
-> per-frame majority vote of three models trained only on open tracking of other games (DFL / IDSSE
-> Bundesliga, CC BY 4.0, and PFF FC's free 2022 World Cup data): [`nn_pff_tcn`](candidates/nn_pff_tcn),
-> [`nn_pff`](candidates/nn_pff/README.md) and [`ball_radar_pff`](candidates/ball_radar_pff). The vote is followed by the challenge's
-> controlled-possession rule, at the granularity the organisers' published scores imply, and
-> dead ball before each kick-off. It uses no labels from the provided game. The approach is described
-> in [TECHNICAL.md](TECHNICAL.md); the benches and every result are in
-> [`candidates/README.md`](candidates/README.md); candidates we built and dropped are in
-> [`candidates/archive`](candidates/archive/README.md).
+> The submission is [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b"). It runs four
+> models trained only on open tracking of other games (DFL / IDSSE Bundesliga, CC BY 4.0, and PFF FC's
+> free 2022 World Cup data): a label-smoothed TCN ([`nn_pff_tcn`](candidates/nn_pff_tcn), with
+> test-time averaging and label-free per-game re-normalisation from [`adapt`](candidates/adapt/README.md)),
+> a wide MS-TCN ([`nn_pff`](candidates/nn_pff/README.md)), a ball radar
+> ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer network
+> ([`nn_pointer`](candidates/nn_pointer)). Their outputs are combined by expected-spellF1 decoding
+> ([`mbr_decode`](candidates/mbr_decode/README.md)) around the members' vote under the challenge's
+> controlled-possession rule, followed by dead ball before each kick-off. It uses no labels from the
+> provided game. Our previous frozen submission,
+> [`candidates/ensemble_ctrl_v6`](candidates/ensemble_ctrl_v6/README.md), is the reference that F4b
+> was compared against. The approach is described in [TECHNICAL.md](TECHNICAL.md); the benches and
+> every result are in [`candidates/README.md`](candidates/README.md); candidates we built and dropped
+> are in [`candidates/archive`](candidates/archive/README.md).
 
 **Organised by [Metrica Sports](https://metrica-sports.com), [FC Barcelona](https://www.fcbarcelona.com)
 and the [Mobile World Capital Barcelona](https://www.mwcbarcelona.com)**, at the Talent Arena in Barcelona.

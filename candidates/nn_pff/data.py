@@ -11,6 +11,11 @@ Fold specs (game-grouped; a model never sees the game it scores):
     dfl<g>   all training data except DFL game g (index in the sorted DFL list, as bench.py)
     full     all training data (48 PFF selection games + 7 DFL)
 The 16 PFF holdout games are never in the dataset (make_dataset.py refuses them; asserted again).
+Round-4 opt-in (the holdout was scored once for v6 and is spent): with NN_PFF_ALLOW_HOLDOUT=1 a
+dataset folder may hold the 16 holdout games (make_dataset.py --allow-holdout) and the `full` and
+dfl<g> specs then train on all 64 PFF games; pff<k> specs are refused in that mode (no PFF
+out-of-fold score exists for such models). The trainers record the mode in every weight file
+(`pff_holdout_trained`, and `train_games` lists the games). Without the variable nothing changes.
 SkillCorner A-League training games (SKC-*, $MTAH_WORK/skc_aleague) may be linked into a dataset
 folder; they are in every spec's training set (never scored on these benches); the 5 SKC holdout
 games are refused; the same for FOOTPASS (FP-*, $MTAH_WORK/footpass) and its 13 holdout games.
@@ -34,6 +39,11 @@ ARCH = os.path.join(WORK, "arch", "nn_pff")
 
 def holdout():
     return set(json.load(open(os.path.join(ARCH, "holdout_games.json")))["games"])
+
+
+def allow_holdout():
+    """Explicit opt-in (env NN_PFF_ALLOW_HOLDOUT=1): train on the 16 spent PFF holdout games too."""
+    return os.environ.get("NN_PFF_ALLOW_HOLDOUT", "") == "1"
 
 
 def skc_holdout():
@@ -134,6 +144,10 @@ def load(ds_dir, spec, dfl_fold_s=0.0, pff_fold_s=0.0, max_files=None):
     b float32 (3, T): soft H<->A boundary, soft alive<->dead boundary, hand-over target yc), one per
     half of each training file."""
     hold = holdout()
+    if allow_holdout():
+        if spec.startswith("pff"):
+            raise ValueError("NN_PFF_ALLOW_HOLDOUT=1: only the full and dfl<g> specs (no PFF folds)")
+        hold = set()
     shold = skc_holdout()
     ex = excluded(spec)
     raw_dir = os.path.join(os.path.dirname(os.path.abspath(ds_dir)), "raw")

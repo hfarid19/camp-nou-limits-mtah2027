@@ -85,7 +85,7 @@ def main():
     ap.add_argument("--full-only", action="store_true")
     args = ap.parse_args()
     os.makedirs(args.folds_out, exist_ok=True)
-    meta = dict(params=PARAMS, lgb_version=lgb.__version__, models={})
+    meta = dict(params=PARAMS, lgb_version=lgb.__version__, models={}, pff_holdout_trained=bc.ALLOW_HOLDOUT)
     allg = list(bc.games())
     for which in args.models.split(","):
         curves = []

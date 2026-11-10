@@ -1,5 +1,10 @@
 # ensemble_ctrl_v6: the vote with every member retrained on PFF World Cup 2022 + DFL
 
+> **Status (10 Nov 2026): superseded.** v6 was our frozen submission until 10 Nov. The submission is now
+> `../final_f4b` (F4b); v6 is the reference F4b was compared against (`../../TECHNICAL.md`, section 6.2).
+> The "final pick" below is v6's own final pick. `pipeline_lsw.py` (last section) was not shipped. Its
+> label-smoothed TCN fed into F4b, and its wide MS-TCN was replaced there by a width-192 variant.
+
 `v6_core.py` is ensemble_ctrl_v5c's vote machinery with the member list and the rule as
 parameters: a hard majority vote of the members' own decoded codes (tie-break = member order),
 then optional `merge_short_v2`, then `control.fold`, then `prekick_dead`. `members.py` and
@@ -7,8 +12,10 @@ then optional `merge_short_v2`, then `control.fold`, then `prekick_dead`. `membe
 
 | file | candidate |
 |---|---|
-| `pipeline_v5cpff.py` | **v5c+PFF**: v5c's three members with their exact recipes, retrained on 7 DFL + 48 PFF games |
-| `pipeline.py` | the final pick (see the end of this file) |
+| `pipeline_v5cpff.py` | **v5c+PFF**: v5c's three members with their exact recipes, retrained on 7 DFL + 48 PFF games; nested rule (no smoothing, fold 0.75 s) |
+| `pipeline_v5crule.py` | the same members with v5c's rule (merge 1 s, fold 1.25 s) |
+| `pipeline.py` | v6's final pick = `pipeline_v5crule.py` (see "Final pick"); the submission until 10 Nov, now superseded by `../final_f4b` |
+| `pipeline_lsw.py` | post-freeze candidate, **never shipped**: label-smoothed TCN + wide MS-TCN + radar_pff, v5c's rule (see the last section) |
 
 Training data, folds, enforcement and the member recipes are in `../nn_pff/README.md`. The
 reference for every comparison is the submission, `ensemble_ctrl_v5c`, with v4 also reported.
@@ -86,7 +93,9 @@ fold folders. `$A/pff_folds.json` maps the same files to their PFF fold folders.
 
 An independent audit of `pipeline_v5cpff.py` reproduced every number above, found no leakage, and
 confirmed it runs without torch. It also ran a check nobody had: the SkillCorner A-League bench
-(`../skc/`, 20 games, never used for selection, labels with the fingerprint closest to the truth's).
+(`../skc/`, 20 games, not used for any v6 choice until then, labels with the fingerprint closest to
+the truth's). From this point on it was a selection bench: it decided the rule below and gated
+rounds 4 and 5.
 There the 0.75 s rule was worse than v5c: fine3 −0.0073 ± 0.0040, 7/20 games. It also loses on
 the coarse readings (T3 −0.025). The gain comes from the retrained members, not from the rule.
 
@@ -108,3 +117,38 @@ The PFF numbers are inflated: PFF's ball is placed on the carrier at event times
 members were trained on PFF. The holdout equals the out-of-fold estimate, so nothing leaked.
 The DFL gain is the honest estimate of transfer.
 Logs: `$MTAH_WORK/arch/ensemble_ctrl_v6/rulecheck/`.
+
+## Post-freeze candidate, never shipped: `pipeline_lsw.py`
+
+The width x context grid and the optimisation axes (`../nn_pff/README.md`) found two member
+changes that help on both selection benches:
+- the TCN recipe with label smoothing 0.05 (`o_ls05`): DFL +0.0084 ± 0.0025 (19/21), PFF +0.0139 ± 0.0018 vs t5c;
+- the MS-TCN recipe at width C 128 (`m5c_W`): DFL +0.0073 ± 0.0047 (15/21), PFF +0.0122 ± 0.0018 vs m5c.
+
+`pipeline_lsw.py` puts both into the frozen v6, keeping radar_pff and v5c's rule. **This was chosen
+after the results were seen.** It is the best of 4 member combinations, out of ~20 member variants,
+and no holdout is left to confirm it, so the gain below carries selection optimism. The coordinator
+decides; nothing was frozen and `pipeline.py` is unchanged. (Outcome: lsw became the default of
+round 5's decision rule and was beaten there; see `../final_f4b/README.md`.)
+
+| live, paired | vs frozen v6 (`pipeline.py`) | vs v5c |
+|---|---|---|
+| DFL LOGO fine4 (0.7385) | +0.0099 ± 0.0021 (17/21) | +0.0214 ± 0.0047 (20/21) |
+| PFF out-of-fold fine3 (0.7891) | +0.0076 ± 0.0016 (37/48, offline vote) | +0.1074 ± 0.0031 (48/48) |
+| SkillCorner fine3, 20 games (0.6018; the live run's log prints the raw reading, 0.5988) | +0.0054 ± 0.0026 (13/20) | +0.0082 ± 0.0038 (12/20) |
+| Metrica dev (0.7320) | +0.0035 | +0.0346 |
+
+Every DFL game used fold models. Every PFF game resolved all 6 weight files to its own fold
+(`run_pff.py --expect 6`). Live == offline vote on 21/21 DFL game-seeds and 48/48 PFF games. Match:
+two runs cmp-identical, sha256 `c8fc6ada7e4f…`, valid, 331 possessions, dead share 0.466. The
+frozen v6's CSV (not committed; `evaluation/results/` is gitignored) is `da85721c39520c30…`. New weights:
+`nn_pff_tcn/tcn_ls.npz` (0.9 MB), `nn_pff/mstcn_w.npz` (4.8 MB). Fold mappings:
+`$MTAH_WORK/arch/ensemble_ctrl_v6/folds_lsw.json` and `pff_folds_lsw.json`. Logs: `$MTAH_WORK/arch/ensemble_ctrl_v6/logs/*lsw*`,
+`$MTAH_WORK/arch/nn_pff/logs/swap_final.txt`.
+
+```
+FOLDS=folds_lsw.json PFFFOLDS=pff_folds_lsw.json $MTAH_WORK/arch/ensemble_ctrl_v6/live_checks.sh pipeline_lsw.py ensemble_ctrl_v6_lsw
+python candidates/skc/bench_skc.py run candidates/ensemble_ctrl_v6/pipeline_lsw.py --name ensemble_ctrl_v6_lsw
+python candidates/nn_pff/swap_eval.py --rule 1.0,1.25 --ref "<t5c>;<m5c>;<radar_pff>" --set "lsw=<o_ls05>;<m5c_W>;<radar_pff>"
+```
+
