@@ -151,11 +151,11 @@ We chose version 9 because we expect the hidden truth to follow Metrica's way of
 
 ![Score of each version on the four benchmarks](docs/fig/progress.png)
 
-Each cell is spellF1 / macroF1. For version 9 we computed spellF1 only.
+Each cell is spellF1 / macroF1.
 
 | Version | What it is | Bundesliga (7) | SkillCorner (20) | World Cup (48) | Metrica (2) |
 |---|---|---|---|---|---|
-| **9 (final)** | Version 8 with the MS-TCN also fine-tuned on Metrica | 0.7590 | 0.6270 | not scored | see below |
+| **9 (final)** | Version 8 with the MS-TCN also fine-tuned on Metrica | 0.7590 / 0.939 | 0.6270 / 0.900 | not scored | see below |
 | 8 | Version 7 with the fine-tuned MS-TCN and the 19.3M pointer | **0.7615 / 0.941** | **0.6285 / 0.901** | **0.824 / 0.950** | **0.7462 / 0.834** |
 | 7 | MBR decoding of TCN, MS-TCN, radar and pointer | 0.7555 / 0.940 | 0.6150 / 0.896 | 0.819 / 0.950 | 0.7416 / 0.834 |
 | 6 | Majority vote of three models, trained on Bundesliga and World Cup | 0.7286 / 0.933 | 0.5964 / 0.892 | 0.782 / 0.943 | 0.7285 / 0.831 |
@@ -163,7 +163,14 @@ Each cell is spellF1 / macroF1. For version 9 we computed spellF1 only.
 | 4 | First version built for the fine reading of "controlled" | 0.710 / 0.927 | 0.590 / 0.888 | 0.676 / 0.906 | 0.708 / 0.825 |
 | 2 (first) | Vote built for a 2 second threshold | 0.662 / 0.923 | 0.611 / 0.891 | 0.632 / 0.902 | 0.664 / 0.822 |
 
-Version 8 has the best score on each of these four benchmarks. Version 9 is within 0.003 of it on the Bundesliga and SkillCorner and gains +0.0108 on held-out Metrica games (0.7976 against 0.7868). Those Metrica figures are leave-one-game-out over all three sample games with a stricter label variant, so they are not comparable with the Metrica column above. The chart above stops at version 8.
+Version 8 has the best score on each of these four benchmarks. Version 9 is within 0.003 of it on the Bundesliga and SkillCorner and gains +0.0108 on held-out Metrica games:
+
+| Held-out Metrica, all 3 sample games | spellF1 | macroF1 |
+|---|---|---|
+| Version 9 | 0.7976 | 0.847 |
+| Version 8 | 0.7868 | 0.845 |
+
+Those Metrica figures are leave-one-game-out over all three sample games with a stricter label variant, so they are not comparable with the Metrica column above, whose two games are training data for version 9. Version 9 has no World Cup figure because that needs World Cup fold models of its MS-TCN, which we did not train.
 
 Against version 7, version 8 gains +0.0060 ± 0.0020 on the Bundesliga (17/21), +0.0135 ± 0.0019 on SkillCorner (17/20) and +0.0046 on Metrica. The World Cup figures for versions 7 and 8 are approximate, because they were computed without the TCN's test-time averaging, and for version 8 also without the SkillCorner fine-tune of the MS-TCN.
 
