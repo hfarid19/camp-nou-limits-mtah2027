@@ -216,3 +216,82 @@ fixed in the notes before training. Run whatever the 200M results are (not condi
 conditions as the 22:30 addendum: screen only (PFF fold 0, SkillCorner, Metrica with the fold-0 model; no DFL without LOGO
 folds); no submission change without four folds, DFL LOGO models, the gates and a verified pipeline. User also asked for a
 public-5-minute score of every new model: curiosity only, disclosed, not a basis for any choice (RULES.md).
+
+ADDENDUM 2026-11-11 08:35 CST (size experiments, continued; written before any of these runs)
+- Radar feature stage / scoring on GPU: candidates/ball_radar_pff/radar_torch.py (torch port of radar_common.forward,
+  experiments only). Accepted for a width only if its labels equal the numpy path's; the w10 radar is rerun on the pod
+  (torch CUDA radar + pod LightGBM 4.7.0) on all 12 PFF fold-0 and 20 SkillCorner games and compared with the Mac numpy
+  outputs of 11 Nov 00:26-00:48. Then radar w100 and the 500M radar (radar_pff_w500) are scored with it.
+- 1B rung (user request 08:30): one fold-0 model of each family at ~1,000M parameters, same recipe and scoring as the 500M
+  rung (PFF fold 0, SkillCorner, Metrica dev; no DFL; "does not fit" is a valid outcome), only if time allows, after the
+  500M rung is scored. Exploratory; cannot enter a submission without the conditions of the 22:30 addendum.
+
+ADDENDUM 2026-11-11 10:30 CST (written before these runs)
+- Wider radar as an ensemble member: on fold 0 the 11M radar (radar_pff_w100: D 328, Hp 328, Hb 656, C 656; only the
+  widths differ from radar_pff) gives PFF +0.0233 ± 0.0053, SkillCorner +0.0111 ± 0.0022 vs the shipped radar. Its full
+  fold set (PFF folds 1-3, 7 DFL LOGO folds, full model; same recipe, iters 3200) is trained on the Mac GPU, features and
+  LightGBM as radar_pff. Candidate "F4sP-w": F4sP with ("ball_radar_pff", w100) in place of the radar, nothing else
+  changed (same CFG, no re-tuning). It replaces v8 only if, vs F4sP: gain-sum over DFL-LOGO + SkillCorner > 2 SE,
+  neither bench worse by more than 1 SE, Metrica dev not worse by more than 0.005, and the pipeline reproduces
+  byte-identically. The 500M radar is not a candidate for the submission (CPU inference cost); it is a size-curve point.
+
+ADDENDUM 2026-11-11 10:35 CST (clock checked) — SkillCorner fine-tune of the bigger fold-0 MS-TCN (user request), written
+before any training or scoring of it. EXPLORATORY, ONE PFF FOLD (pff0). Notes: arch/r5_arch/skcft_big/NOTES.md.
+Question: does the SKC-FT recipe applied to m5c_C528ls (19.65M) keep its fold-0 PFF gain over m5c_C192ls (+0.0077 ± 0.0035)
+and add the SkillCorner gain that SKC-FT gave the shipped C192 member?
+Recipe: EXACTLY the 11:50 (A) SKC-FT recipe of m5c_C192ls_skcft (skc_train/NOTES.md, jobs/ft_mstcn.sh), nothing tuned:
+  init = the parent's weights and normalisation; Adam at constant lr 5e-5 (= 0.1 x the parent's 5e-4; same for C528), 5 epochs
+  of 1200 crops (750 it, batch 8, crop 1024), parent cfg otherwise (ls 0.05, dropout 0.5, no EMA, seed 0), w_dfl 0.15,
+  w_skc = -1 (SkillCorner at its share of the spec's training games), data ds_pff2 + the 20 SKC games (degrade_v2 seeds
+  41/42/43, /root/work/ds_pff2_skc20), the same 4 SkillCorner CV folds (adapt/skc_folds.json + the 5 SKC holdout games).
+  Only adaptation, forced by starting from fold-0 parents: the 12 PFF fold-0 games stay out of every fine-tune.
+  Per variant 5 models: f0skc<k> (k 0-3) = init fold_pff_0, data of spec pff0 (36 PFF + 7 DFL) + the 15 SKC games outside
+  CV fold k -> scores the 5 SKC games of fold k; pff0 = init fold_pff_0, data of pff0 + all 20 SKC games -> scores the 12 PFF
+  fold-0 games and Metrica dev (the role the full model has in the shipped recipe).
+Variants (two, no others): m5c_C528ls_skcft_f0 (parent arch/nn_pff/m5c_C528ls/fold_pff_0) and, as like-for-like reference,
+  m5c_C192ls_skcft_f0 (parent arch/nn_pff/m5c_C192ls/fold_pff_0, same recipe).
+Scoring: exact numpy CPU path (nn_pff/pipeline_cfg.py) on the Mac. SkillCorner-CV fine3 (20 games, each scored only by a
+  model that did not train on it), PFF fold-0 fine3 (12 games), Metrica dev (2 games x 2 seeds). Paired mean ± SE (wins/n) of
+  C528-FT vs (a) m5c_C528ls fold-0 not fine-tuned and (b) C192-FT; C192-FT vs C192 fold-0 for context. No DFL: these models
+  trained on all 7 DFL games.
+TCN family (o_ls05_C2032 / o_ls05): run only if the recipe transfers without new choices; train_tcn.py is iteration-based
+  (OneCycle, 4000 it, batch 16, crop 512) and has no SkillCorner sampling weight, so "5 epochs", "schedule as the parent" and
+  the SKC weighting would need new decisions -> NOT run here; the choices are reported to the user instead.
+Status: curiosity / screen only. No model from this addendum can enter a submission unless it gets four PFF folds, DFL LOGO
+  fold models (each with all 20 SKC games) and the standing gates (member gate vs the shipped member: DFL >= +0.005 and >= 2 SE,
+  SkillCorner not worse > 1 SE, Metrica not worse > 0.010; then one final vs F4sP with the gain-sum rule), plus byte-identity
+  checks of a new pipeline. Cut-off for any submission change: 12:00 CST 14 Nov.
+
+ADDENDUM 2026-11-11 10:55 CST (clock checked) — repeated-data experiments (user: apply Hernandez et al. 2022 "Scaling Laws and
+Interpretability of Learning from Repeated Data"; coordinator added D and E from Kaplan et al. 2020). Written before any of these
+runs. EXPLORATORY, ONE PFF FOLD (pff0). Notes: arch/r5_arch/repdata/NOTES.md. Nothing here changes the submission.
+Models (fold-0 recipes, unchanged except the one knob named): TCN o_ls05 (C 64, 0.22M) and o_ls05_C640 (19.9M); MS-TCN
+m5c_C192ls (2.6M) and m5c_C528ls (19.65M). Data ds_pff2 (43 training games of spec pff0 = 36 PFF + 7 DFL, degrade_v2 seeds 41-43).
+Training on the pod H100 (cuda float32); the existing 1x fold-0 models are the references (o_ls05 1x was trained on Apple MPS).
+A. Repetition sweep: gradient steps x0.25 / x0.5 / x2 / x4 (1x exists). TCN: iters 1000 / 2000 / 8000 / 16000; its OneCycle
+   schedule is tied to total steps -> total_steps = iters, same shape (10 % warm-up, cosine anneal) stretched. MS-TCN: epochs
+   10 / 20 / 80 / 160 of 1200 crops (recipe has cosine 0 = constant lr: no schedule to rescale). Final logged training loss recorded.
+B. Less exact repetition at equal compute: 1x steps on 12 stored degradation seeds of the 43 training games (41-43 + 45-49 from
+   ds_r4new, same make_dataset.py / degrade_v2 + 4 new seeds 50-53 built with the same command); fewer seeds if generation is too
+   slow (cost measured on one file first and reported). Fresh-per-crop degradation (nn_aux/train_otf.py) is costed and used only
+   if cheaper than building the seeds. Existing context points reported as such, not new runs: o_ls05_s8 (8 seeds) and r5_otf_tL
+   (on-the-fly), fold-0 models.
+C. Memorisation diagnostic (no training): mean NLL of the true label (classes H/A/D, graded steps, eval mode, full half-sequences,
+   no label smoothing; TCN class logits, MS-TCN last class stage) on stored degraded inputs: 12 PFF TRAINING games of pff0 (fixed
+   draw, numpy default_rng(2026)) x seeds 41-43, and the 12 held-out fold-0 PFF games x seeds 41-43; gap = held-out - train.
+   For the ladders TCN 0.2M / 2.1M / 19.9M / 199M / 502M and MS-TCN 2.6M / 19.7M / 58M / 198M, and every A / B / D / E model.
+D. Data-size scan (Kaplan): 25 % and 50 % of the 43 training games (whole games dropped; nested subsets from a fixed permutation,
+   numpy default_rng(2026), PFF and DFL drawn separately to keep the mix: 9 PFF + 2 DFL, 18 PFF + 4 DFL), all 3 seeds of the kept
+   games, SAME gradient steps as 1x (so 4x / 2x more passes per game); normalisation statistics from the kept games (the trainer's
+   own rule; no code change). Rough power-law slope of held-out loss and of scores vs number of games, per size.
+E. Seed noise: 1x recipe retrained with training seeds 1 and 2 (3 incl. the existing seed 0); for o_ls05 also seed 0 on CUDA
+   (its seed-0 reference is MPS). Between-seed SD of each bench score reported next to the paired game-level SE.
+Scoring, all new models: PFF fold-0 fine3 (12 games), SkillCorner fine3 (20 games, fold-0 model, <name>_f0) and Metrica dev
+(2 games x 2 seeds) exactly as size2 (pod CUDA path pod_cuda.py with TF32 off; one-game CUDA-vs-numpy code check for one model
+per family and size, numpy CPU path for any model whose check differs). Paired diff mean ± SE (wins/n) vs the 1x / 3-seed seed-0
+model of the same size. Never scored on DFL (all these models trained on all 7 DFL games).
+Questions, no decision rule attached (screen only): does less repetition (A < 1x, B) improve SkillCorner, especially at 20M;
+does more repetition hurt; is the train/held-out NLL gap growing with size or repeats (memorisation regime); is the 20M-vs-shipped
+SkillCorner difference larger than seed noise (E); are we data-limited and does 20M lose more than the small model when games are
+removed (D). Order: A, C, E, D, B. No model from this addendum can enter a submission without four PFF folds, DFL LOGO fold models,
+the standing gates and byte-identity checks. BAR-ATH / FOOTPASS data never go to the pod.
