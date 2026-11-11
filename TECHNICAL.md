@@ -145,7 +145,7 @@ We first pooled the Metrica games into training at their natural share, which is
 
 Therefore, the amount of Metrica data in the mix mattered. Mixing it 1:1 for a short fine-tune moved the MS-TCN about ten times further on held-out Metrica games than pooling did (+0.0557 against +0.0059 alone). Starting that fine-tune from the shipped model, with SkillCorner kept in the mix, held the SkillCorner score. Alone, the version 9 MS-TCN gains +0.0557 on held-out Metrica games (better on 3 of 3), with −0.0069 ± 0.0030 on the Bundesliga and −0.0014 ± 0.0020 on SkillCorner.
 
-We chose version 9 because we expect the hidden truth to follow Metrica's way of labelling. It accepts a small loss on 27 games labelled by other providers (7 Bundesliga and 20 SkillCorner) for a gain on 3 games labelled by Metrica's rules. The reader should weigh three things. The rule that admitted it gives Metrica more weight than our earlier rules did, and we wrote that rule after seeing the first Metrica results. Version 9 was scored after its direct precursor (the second row) had failed on SkillCorner. Three games is thin evidence. The version 9 ensemble also predicts about 2% fewer possessions on the Metrica games than version 8, which already predicted fewer than Metrica's own count.
+We chose version 9 because we expect the hidden truth to follow Metrica's way of labelling. It accepts a small loss on games labelled by other providers (7 Bundesliga and 20 SkillCorner in the rule, and 48 World Cup games scored afterwards, section 3f) for a gain on 3 games labelled by Metrica's rules. The reader should weigh three things. The rule that admitted it gives Metrica more weight than our earlier rules did, and we wrote that rule after seeing the first Metrica results. Version 9 was scored after its direct precursor (the second row) had failed on SkillCorner. Three games is thin evidence. The version 9 ensemble also predicts about 2% fewer possessions on the Metrica games than version 8, which already predicted fewer than Metrica's own count.
 
 ### 3f. Comparison of Versions
 
@@ -155,8 +155,8 @@ Each cell is spellF1 / macroF1.
 
 | Version | What it is | Bundesliga (7) | SkillCorner (20) | World Cup (48) | Metrica (2) |
 |---|---|---|---|---|---|
-| **9 (final)** | Version 8 with the MS-TCN also fine-tuned on Metrica | 0.7590 / 0.939 | 0.6270 / 0.900 | not scored | see below |
-| 8 | Version 7 with the fine-tuned MS-TCN and the 19.3M pointer | **0.7615 / 0.941** | **0.6285 / 0.901** | **0.824 / 0.950** | **0.7462 / 0.834** |
+| **9 (final)** | Version 8 with the MS-TCN also fine-tuned on Metrica | 0.7590 / 0.939 | 0.6270 / 0.900 | 0.8227 / 0.950 | see below |
+| 8 | Version 7 with the fine-tuned MS-TCN and the 19.3M pointer | **0.7615 / 0.941** | **0.6285 / 0.901** | **0.8252 / 0.951** | **0.7462 / 0.834** |
 | 7 | MBR decoding of TCN, MS-TCN, radar and pointer | 0.7555 / 0.940 | 0.6150 / 0.896 | 0.819 / 0.950 | 0.7416 / 0.834 |
 | 6 | Majority vote of three models, trained on Bundesliga and World Cup | 0.7286 / 0.933 | 0.5964 / 0.892 | 0.782 / 0.943 | 0.7285 / 0.831 |
 | 5c | The same vote, trained on Bundesliga only, after the data fix | 0.717 / 0.930 | 0.594 / 0.889 | 0.682 / 0.907 | 0.697 / 0.825 |
@@ -170,9 +170,11 @@ Version 8 has the best score on each of these four benchmarks. Version 9 is with
 | Version 9 | 0.7976 | 0.847 |
 | Version 8 | 0.7868 | 0.845 |
 
-Those Metrica figures are leave-one-game-out over all three sample games with a stricter label variant, so they are not comparable with the Metrica column above, whose two games are training data for version 9. Version 9 has no World Cup figure because that needs World Cup fold models of its MS-TCN, which we did not train.
+Those Metrica figures are leave-one-game-out over all three sample games with a stricter label variant, so they are not comparable with the Metrica column above, whose two games are training data for version 9.
 
-Against version 7, version 8 gains +0.0060 ± 0.0020 on the Bundesliga (17/21), +0.0135 ± 0.0019 on SkillCorner (17/20) and +0.0046 on Metrica. The World Cup figures for versions 7 and 8 are approximate, because they were computed without the TCN's test-time averaging, and for version 8 also without the SkillCorner fine-tune of the MS-TCN.
+After choosing version 9 we also scored it on the 48 World Cup games, which needed World Cup fold versions of both MS-TCN fine-tunes. There version 9 is −0.0025 ± 0.0008 against version 8 (better on 16 of 48 games), and it is lower in all four folds. This is the same size of loss as on the Bundesliga, on a larger benchmark.
+
+Against version 7, version 8 gains +0.0060 ± 0.0020 on the Bundesliga (17/21), +0.0135 ± 0.0019 on SkillCorner (17/20) and +0.0046 on Metrica. The World Cup figures for versions 7, 8 and 9 were computed without the TCN's test-time averaging, and the fold models of the fine-tuned MS-TCNs for versions 8 and 9 were trained on different hardware from the shipped ones.
 
 Version 7 was also confirmed once on 13 FOOTPASS games that no model had been scored on before: 0.8046 against 0.7744 for version 6, a gain of +0.0302 ± 0.0045 that held in all 13 games.
 
