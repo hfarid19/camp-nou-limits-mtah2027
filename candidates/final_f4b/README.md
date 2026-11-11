@@ -1,6 +1,11 @@
-# final_f4b: the submission ("F4b", round 5)
+# final_f4b: the previous submission ("F4b", round 5, submission v7)
 
-`pipeline.py` is what `make_submission.py` runs. It applies minimum-Bayes-risk (expected-spellF1)
+> **Superseded (10 Nov 2026) by [`../final_f4sp`](../final_f4sp/README.md) (F4sP, submission v8)**:
+> the same pipeline with the MS-TCN fine-tuned with SkillCorner games added and a 19.3M-parameter
+> pointer, and its own decoder pick. `make_submission.py` now runs F4sP. This folder is kept
+> unchanged, and `pipeline.py` here still reproduces F4b's CSV (sha256 `228fe6a4…`, below).
+
+`pipeline.py` was what `make_submission.py` ran for v7. It applies minimum-Bayes-risk (expected-spellF1)
 decoding (`../mbr_decode`) to four members, then dead ball before each half's kick-off
 (`ensemble_ctrl_v6/v6_core.prekick_dead`). It is numpy + LightGBM only and deterministic, with a
 fixed sampling seed. Member probabilities are rounded to float32 before decoding, so the live

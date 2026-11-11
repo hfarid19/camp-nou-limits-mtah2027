@@ -3,8 +3,9 @@
 The decoder works on the members' saved per-frame probabilities and decoded codes. It is numpy only and
 deterministic, with a fixed seed.
 
-> **Status (10 Nov 2026):** this decoder is part of the submission, `../final_f4b` (F4b), on a different
-> member set and with that set's own full-DFL pick from grid g1 (alpha 1.0, rho 0.2, **margin 0.0**).
+> **Status (10 Nov 2026):** this decoder is part of the submission, `../final_f4sp` (F4sP, v8), on a
+> different member set and with that set's own full-DFL pick from grid g1 (alpha 0.1, rho 0.2,
+> **margin 0.0**; the previous submission `../final_f4b`, F4b, picked alpha 1.0, rho 0.2, margin 0.0).
 > "Shipped" below means this track's pick for the lsw members (`pipeline_mbr.py`), which was not the
 > final submission.
 
@@ -179,11 +180,12 @@ inputs.
   - 1.01% of graded frames changed (27 of 120 windows switched);
   - timing: members 45 s, MBR decode 0.7 s (199,319 frames);
   - a repeat decode is identical.
-- Not wired into `make_submission.py` itself; the submission (`../final_f4b/pipeline.py`) reuses `MBRVote` with its own members and config.
+- Not wired into `make_submission.py` itself; the submission (`../final_f4sp/pipeline.py`, before it
+  `../final_f4b/pipeline.py`) reuses `MBRVote` with its own members and config.
 - The sampler makes discrete choices on exp/log/cumsum results, so byte identity across machines
-  had to be checked. That was done for the submission, which uses this decoder: see the checks in
+  had to be checked. That was done for both submissions that use this decoder: see the checks in
   `../final_f4b/README.md` (macOS at 1/2/8 threads, Linux arm64, Linux x86-64 under emulation, a
-  fresh clone, and a 1e-6 noise probe). `pipeline_mbr.py` itself (the lsw members) was not re-checked
+  fresh clone, and a 1e-6 noise probe) and `../final_f4sp/README.md`. `pipeline_mbr.py` itself (the lsw members) was not re-checked
   that way.
 
 ## Files

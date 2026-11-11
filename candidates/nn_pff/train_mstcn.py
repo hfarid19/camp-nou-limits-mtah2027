@@ -24,6 +24,10 @@ input feature dropout (in_drop), and the length / width of the network. Optimisa
 an exponential moving average of the weights with this decay), focal (focal-loss gamma on the class
 CE), ls (label smoothing), init (start from an exported npz of the same shape: fine-tuning) and
 src (all / pff / dfl: which training games are used).
+Round-5 "+SKC" opt-ins (not in CFG; absent = unchanged): cfg w_skc (> 0: total sampling share of the SKC-* files;
+< 0: their share of the spec's training games; DFL keeps w_dfl, PFF the rest), and with an init folder the data.py
+specs skc<k> / nowin (NN_PFF_SKC_CV=1) start from the folder's full.npz (it never saw a SkillCorner game); their
+files are fold_skc_<k>.npz / nowin.npz.
 torch is used for training only.
 """
 
@@ -141,11 +145,14 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     mean, std = sym_stats(seqs, perm, signs)
     init = None
     if cfg["init"]:
-        ip = out_name(cfg["init"], spec) if os.path.isdir(cfg["init"]) else cfg["init"]   # same spec: no leak
+        ispec = "full" if (spec.startswith("skc") or spec == "nowin") else spec   # full: no SKC game seen
+        ip = out_name(cfg["init"], ispec) if os.path.isdir(cfg["init"]) else cfg["init"]   # same spec: no leak
         init = np.load(ip)
-        assert str(init["spec"]) == spec, (ip, str(init["spec"]), spec)
+        assert str(init["spec"]) == ispec, (ip, str(init["spec"]), spec)
+        assert not D.excluded(spec) & {str(g) for g in init["train_games"]}, ip
         mean, std = init["mean"].astype(np.float64), init["std"].astype(np.float64)   # keep the input scale
         games = sorted(set(games) | {str(g) for g in init["train_games"]})
+    is_skc = np.array([s[0].startswith("SKC-") for s in seqs])
     normed = []
     for g, X, y, b in seqs:
         Xn = np.nan_to_num((X - mean) / std).astype(np.float16)
@@ -157,6 +164,16 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     if 0 < cfg["w_dfl"] < 1 and isd.any() and (~isd).any():
         w[isd] *= cfg["w_dfl"] / w[isd].sum()
         w[~isd] *= (1 - cfg["w_dfl"]) / w[~isd].sum()
+    w_skc = cfg.get("w_skc", 0)
+    if w_skc and is_skc.any():
+        if w_skc < 0:
+            w_skc = sum(g.startswith("SKC-") for g in games) / len(games)
+        pff = ~isd & ~is_skc
+        w[is_skc] *= w_skc / w[is_skc].sum()
+        w[pff] *= (1 - cfg["w_dfl"] - w_skc) / w[pff].sum()
+        log("sampling shares: DFL {:.3f} SKC {:.3f} ({} games) PFF {:.3f}".format(
+            w[isd].sum() / w.sum(), w[is_skc].sum() / w.sum(), sum(g.startswith("SKC-") for g in games),
+            w[pff].sum() / w.sum()))
     w /= w.sum()
     log("spec {} games {} (PFF {}, DFL {}) seqs {} steps {} load {:.0f}s".format(
         spec, len(games), sum(g.startswith("PFF") for g in games), sum(g.startswith("DFL") for g in games),
@@ -261,6 +278,10 @@ def out_name(out, spec):
         return os.path.join(out, "full.npz")
     if spec.startswith("pff"):
         return os.path.join(out, "fold_pff_{}.npz".format(int(spec[3:])))
+    if spec.startswith("skc"):
+        return os.path.join(out, "fold_skc_{}.npz".format(int(spec[3:])))
+    if spec == "nowin":
+        return os.path.join(out, "nowin.npz")
     return os.path.join(out, "fold_tcn_{}.npz".format(int(spec[3:])))
 
 

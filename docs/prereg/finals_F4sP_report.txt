@@ -1,0 +1,14 @@
+== F4sP members ['adapt32/o_ls05__tta4_all_a50', 'm5c_C192ls_skcft', 'radar_pff', 'r5_ptr_ballc_p20M']
+   full-DFL pick {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}; nested picks {'DFL-MAT-J03WMX': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}, 'DFL-MAT-J03WN1': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}, 'DFL-MAT-J03WOH': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}, 'DFL-MAT-J03WOY': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}, 'DFL-MAT-J03WPY': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}, 'DFL-MAT-J03WQQ': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}, 'DFL-MAT-J03WR9': {'alpha': 0.1, 'margin': 0.0, 'rho': 0.2, 'src': 'hmm'}}
+   dfl 0.7615 poss/90 310.4 | vs v6 +0.0330 ± 0.0038 (21/21) | vs F4b +0.0060 ± 0.0020 (17/21)
+   skc 0.6285 poss/90 285.1 | vs v6 +0.0321 ± 0.0039 (20/20) | vs F4b +0.0135 ± 0.0019 (17/20)
+   met 0.7462 poss/90 288.0 | vs v6 +0.0177 ± 0.0024 (4/4) | vs F4b +0.0046 ± 0.0006 (4/4)
+   skc vs v6 at matched possession count +0.0298 ± 0.0032 (20/20)
+== reference F4b: dfl 0.7555 (poss/90 313.8) skc 0.6150 (poss/90 288.6) met 0.7416 (poss/90 289.9) | vs v6 dfl +0.0269 ± 0.0032 (20/21) skc +0.0186 ± 0.0040 (17/20) met +0.0131 ± 0.0017 (4/4)
+== F4sP members ['adapt32/o_ls05__tta4_all_a50', 'm5c_C192ls_skcft', 'radar_pff', 'r5_ptr_ballc_p20M']
+   dfl 0.7615 poss/90 310.4 | vs v6 +0.0330 ± 0.0038 (21/21) | vs F4s +0.0051 ± 0.0019 (15/21)
+   skc 0.6285 poss/90 285.1 | vs v6 +0.0321 ± 0.0039 (20/20) | vs F4s +0.0046 ± 0.0012 (16/20)
+   met 0.7462 poss/90 288.0 | vs v6 +0.0177 ± 0.0024 (4/4) | vs F4s +0.0064 ± 0.0018 (3/4)
+   skc vs v6 at matched possession count +0.0298 ± 0.0032 (20/20)
+   vs F4s: DFL +0.0051 ± 0.0019 (15/21) SKC +0.0046 ± 0.0012 (16/20) | gain-sum +0.0097 ± 0.0023 | Metrica +0.0064
+== reference F4s: dfl 0.7564 (poss/90 307.8) skc 0.6239 (poss/90 284.1) met 0.7397 (poss/90 285.8) | vs v6 dfl +0.0278 ± 0.0048 (19/21) skc +0.0275 ± 0.0039 (20/20) met +0.0113 ± 0.0005 (4/4)

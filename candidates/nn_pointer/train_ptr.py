@@ -12,6 +12,10 @@ train_games and spec).
 Loss = team NLL of the pointer's team marginals (label smoothing ls) + lam_ptr * pointer CE (where the
 possessor slot is known; dead frames -> the dead class) + c_w * hand-over BCE + lam_dir * direct team
 head CE. Team-swap augmentation p = 0.5.
+Round-5 "+SKC" opt-ins (absent = unchanged): --w-skc S (> 0: total sampling share of the SKC-* files; < 0: their share
+of the spec's training games; DFL keeps w_dfl, PFF the rest), --init DIR (fine-tune: start from DIR's model of the same
+spec, or DIR/full.npz for the data.py specs skc<k> / nowin, keeping its normalisation), and those specs themselves
+(NN_PFF_SKC_CV=1; files fold_skc_<k>.npz / nowin.npz, as train_mstcn.out_name). Used values are recorded in the cfg.
 """
 
 import argparse
@@ -74,8 +78,13 @@ def load(ds_dir, spec, ballc=False):
         oz = np.load(os.path.join(base, "owner", bn))
         assert np.array_equal(pz["idx"], idx) and np.array_equal(oz["idx"], idx), p
         X, xs, ms, xf, own = z["X"], pz["xs"], pz["ms"], pz["xf"], oz["own"]
+        sel = pz["sel"] if ballc else None
+        kr = D.keep_rows(spec, g, idx)
+        if kr is not None:
+            y, yc, idx, half, X, xs, ms, xf, own = (v[kr] for v in (y, yc, idx, half, X, xs, ms, xf, own))
+            sel = sel[kr] if ballc else None
         if ballc:
-            own = remap_owner(own.astype(np.int64), pz["sel"].astype(np.int64))
+            own = remap_owner(own.astype(np.int64), sel.astype(np.int64))
         brk = np.concatenate(([True], (np.diff(idx) != 5) | (np.diff(half) != 0)))
         sid = np.cumsum(brk) - 1
         for s in np.unique(sid):
@@ -141,6 +150,16 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device):
     perm, signs = fe.swap_index(names, kinds)
     perm, signs = np.asarray(perm), np.asarray(signs, np.float32)
     mean, std = TM.sym_stats([(s["g"], s["X"], None, None) for s in seqs], perm, signs)
+    init = None
+    if cfg.get("init"):
+        ispec = "full" if (spec.startswith("skc") or spec == "nowin") else spec   # full: no SKC game seen
+        ip = TM.out_name(cfg["init"], ispec)
+        init = np.load(ip)
+        assert str(init["spec"]) == ispec, (ip, str(init["spec"]), spec)
+        assert not D.excluded(spec) & {str(g) for g in init["train_games"]}, ip
+        mean, std = init["mean"].astype(np.float64), init["std"].astype(np.float64)   # keep the input scale
+        games = sorted(set(games) | {str(g) for g in init["train_games"]})
+        log("init from {} (spec {})".format(ip, ispec))
     for s in seqs:
         s["Xn"] = np.nan_to_num((s.pop("X") - mean) / std).astype(np.float16)
     lens = np.array([len(s["y"]) for s in seqs], float)
@@ -149,6 +168,17 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device):
     if 0 < cfg["w_dfl"] < 1 and isd.any() and (~isd).any():
         w[isd] *= cfg["w_dfl"] / w[isd].sum()
         w[~isd] *= (1 - cfg["w_dfl"]) / w[~isd].sum()
+    is_skc = np.array([s["g"].startswith("SKC-") for s in seqs])
+    w_skc = cfg.get("w_skc", 0)
+    if w_skc and is_skc.any():
+        if w_skc < 0:
+            w_skc = sum(g.startswith("SKC-") for g in games) / len(games)
+        pff = ~isd & ~is_skc
+        w[is_skc] *= w_skc / w[is_skc].sum()
+        w[pff] *= (1 - cfg["w_dfl"] - w_skc) / w[pff].sum()
+        log("sampling shares: DFL {:.3f} SKC {:.3f} ({} games) PFF {:.3f}".format(
+            w[isd].sum() / w.sum(), w[is_skc].sum() / w.sum(), sum(g.startswith("SKC-") for g in games),
+            w[pff].sum() / w.sum()))
     w /= w.sum()
     own_all = np.concatenate([s["own"] for s in seqs])
     yall = np.concatenate([s["y"] for s in seqs])
@@ -157,7 +187,10 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device):
         len(seqs), int(lens.sum()), float((own_all[yall < 2] >= 0).mean()), time.time() - t0))
     torch.set_num_threads(threads)
     dev = torch.device(device)
-    model = PN.PointerNet(len(names), cfg).to(dev)
+    model = PN.PointerNet(len(names), cfg)
+    if init is not None:
+        model.load_state_dict({k[2:]: torch.from_numpy(init[k].astype(np.float32)) for k in init.files if k.startswith("w/")})
+    model = model.to(dev)
     log("params {}".format(sum(p.numel() for p in model.parameters())))
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["wd"])
     n_it = cfg["iters"]
@@ -218,9 +251,15 @@ def main():
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--cfg", default="{}")
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--w-skc", type=float, default=0.0, help="opt-in: SkillCorner sampling share (< 0: share of games)")
+    ap.add_argument("--init", default="", help="opt-in: fine-tune from this config folder's models")
     a = ap.parse_args()
     cfg = dict(CFG, **json.loads(a.cfg))
     assert set(cfg) == set(CFG), set(cfg) ^ set(CFG)
+    if a.w_skc:
+        cfg["w_skc"] = a.w_skc
+    if a.init:
+        cfg["init"] = os.path.abspath(a.init)
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, "train_cfg.json"), "w") as h:
         json.dump(dict(cfg=cfg, ds=os.path.abspath(a.ds), model="pointer"), h, indent=1)

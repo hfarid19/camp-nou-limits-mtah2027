@@ -64,3 +64,132 @@ pointer slot under the SAME gate as r5_ptr_base: alone, SkillCorner fine3 not wo
 (paired, 20 games). If it passes, exactly one more final is scored: F4b = F3's members + r5_ptr_ballc, same nested-g1 MBR
 procedure. F4b replaces F3 only if its (DFL + SkillCorner) gain sum vs F3 exceeds 1 SE of the difference and Metrica is
 not worse than F3 by more than 0.010. If the gate fails, the final stays F3. r5_ptr_base's failed gate stands.
+
+ADDENDUM 2026-11-10 10:35 — after the final (F4b) was fixed, confirmed on FOOTPASS (spent) and committed locally (a0abe3c).
+User-requested experiment: a formation / role-aware variant of the ball-centred pointer (r5_ptr_role): per-player role
+features from team shape (depth rank in own team, line membership, teammates on the same line, last-defender / goalkeeper
+flags, own-team shape summaries), same recipe and training games as r5_ptr_ballc otherwise.
+Rule, written before any result: screen on PFF out-of-fold vs r5_ptr_ballc; DFL folds only if the PFF screen is not worse.
+It replaces r5_ptr_ballc in the pointer slot (final F4c = F4b with the pointer swapped, same nested-g1 MBR) only if
+  (1) alone: DFL fine4 >= r5_ptr_ballc + 0.005 and >= 2 SE (paired, 21), SkillCorner fine3 not worse by > 1 SE; and
+  (2) F4c vs F4b: (DFL + SkillCorner) gain sum > 2 SE of the difference, Metrica not worse by > 0.010.
+There is no clean confirmation set left: any F4c result is a benchmark result only, and the 13 FOOTPASS games may be
+scored once more for F4c vs F4b as a fourth benchmark (stated as such). Cut-off: results in by end of 11 Nov, else F4b stays.
+No public 5 minutes. BAR-ATH and FOOTPASS data stay on the Mac.
+
+ADDENDUM 2026-11-10 11:20 — user-requested experiment "+SKC": retrain the two best members with SkillCorner A-League games
+added to training: r5_ptr_ballc -> r5_ptr_ballc_skc, m5c_C192ls -> m5c_C192ls_skc. Written before any result.
+Design: SkillCorner is scored CROSS-VALIDATED (4 folds of 5 games: the 3 folds of candidates/adapt/skc_folds.json + the 5
+holdout games as the 4th); every SkillCorner game is scored only by a model that did not train on it. DFL stays LOGO with
+all 20 SkillCorner games in every fold's training set; Metrica and the match use the full model (all 20 SKC games).
+Same recipe, seeds and degradation as the parent model; SkillCorner sampling weight fixed in advance at its share of games
+(no tuning of the weight; at most ONE alternative weight may be tried, chosen on DFL only, and must be reported).
+A +SKC member replaces its parent only if, alone and paired vs the parent:
+  SkillCorner (CV) fine3 >= +0.010 and >= 2 SE (20 games), DFL fine4 not worse by > 1 SE (21), Metrica not worse by > 0.010.
+Then one final F4s = F4b with the qualifying member(s) swapped, same nested-g1 MBR; F4s replaces F4b only if its
+(DFL + SkillCorner-CV) gain sum vs F4b exceeds 2 SE of the difference and Metrica is not worse by > 0.010.
+Caveats fixed in advance: the comparison F4s vs F4b on SkillCorner is not like-for-like with earlier SkillCorner numbers
+(different models per fold); there is no clean confirmation set (FOOTPASS is spent; it may be scored once for F4s vs F4b
+as a benchmark only); the SkillCorner open-data licence must be checked before any +SKC weights are published.
+Cut-off: results by 12:00 CST 12 Nov, else F4b stays. No public 5 minutes. BAR-ATH / FOOTPASS data stay on the Mac.
+ADDENDUM 2026-11-10 11:30 (user request, before any +SKC result): a SECOND, secondary reading "10-minutes-out": one model
+per member trained on DFL + PFF + all 20 SkillCorner games with a fixed contiguous 10-minute window removed from every
+SkillCorner game (minutes 30-40 of the first half, by frame index; a 30 s guard band each side also removed from training),
+scored on those 20 windows, paired vs the parent on the same windows. Reported alongside the cross-validated result.
+It is an in-game holdout (same teams, same tracking session in training), so it is expected to be optimistic for a NEW
+match; the decision rule above still uses the whole-game cross-validation only.
+
+ADDENDUM 2026-11-10 11:50 (user: "add both"), written before any +SKC / fine-tune result.
+(A) SKC-FT: instead of retraining from scratch, take the finished parent weights (r5_ptr_ballc, m5c_C192ls; per fold the
+    matching fold model) and fine-tune briefly on DFL + PFF + SkillCorner at a low learning rate (fixed in advance: lr =
+    0.1 x the parent's peak lr, 5 epochs, same loss/degradation, EMA kept). Same whole-game SkillCorner cross-validation,
+    same 10-minutes-out secondary reading, same gates as the +SKC addendum (11:20). Among {+SKC retrain, SKC-FT} at most
+    one variant per member can go forward: the one with the higher (DFL + SkillCorner-CV) gain sum alone, if it passes the gate.
+(B) MET-FT: fine-tune the same two parents on Metrica's open sample games with Metrica-rule possession labels built from
+    their event data (the labelling company of the match). Fixed settings: lr = 0.1 x parent peak lr, 5 epochs, Metrica
+    crops mixed 1:1 with the original training data (to limit forgetting). Evaluation is leave-one-game-out over the
+    Metrica sample games (fine-tune on the others, score the held-out one) — so Metrica stops being an independent bench
+    for these variants and the usual "Metrica not worse" check is replaced by this cross-validation.
+    A MET-FT member replaces its parent only if, alone and paired vs the parent: held-out Metrica score better on EVERY
+    left-out game and mean gain >= +0.015; DFL fine4 not worse by > 1 SE; SkillCorner fine3 not worse by > 1 SE.
+    With 2-3 games this is weak evidence by construction; report it as such. If Sample Game 3 was kept as an unscored
+    holdout so far, say so before using it, and use it only as the third fold.
+Finals: at most ONE more final is scored in total across the 11:20 and 11:50 addenda (F4b with every qualifying member
+swapped), same nested-g1 MBR; it replaces F4b only if its (DFL + SkillCorner[-CV]) gain sum vs F4b exceeds 2 SE of the
+difference. No clean confirmation exists. Cut-off 12:00 CST 12 Nov. No public 5 minutes; BAR-ATH / FOOTPASS stay on the Mac.
+
+ADDENDUM 2026-11-10 12:45 — new data: SkillCorner 2019/20 open data (9 top-league broadcast matches, MIT; "SKC19").
+Written before any model was run on it. Step 1 (test set only): score v6 and F4b (v7) on the 9 matches, paired.
+Labels: SkillCorner's automatic per-frame possession group (home / away); frames with no group are MASKED (not graded),
+because "none" mixes dead ball, loose ball and broadcast gaps; a team spell is cut at any masked gap longer than 1 s.
+Metric: spellF1 on team spells (H/A) at the same three label readings as SkillCorner fine3 (raw, 0.5 s, 1 s fold),
+predictions' D frames counted as no-team. This is a benchmark with machine-made labels: it is reported, and it does NOT
+change the pick by itself. If F4b is worse than v6 there by more than 2 SE (paired, 9 matches), that is flagged to the
+user as a warning, not an automatic reversal. Step 2 (only after step 1 is reported): SKC19 may be added to the +SKC
+training experiment as extra training games, scored by leave-match-out; no rule is set for that yet.
+
+ADDENDUM 2026-11-10 13:30 (user: "can we drastically increase the params for pointer" -> "ok"), written before any larger
+pointer was trained. Pointer size ladder: r5_ptr_ballc (796,144 parameters) retrained at three larger sizes, about 2.5M,
+6M and 20M parameters, by widening D / C / Dp together (heads scaled so D/heads stays 16; depth L, nsab, dropout, lr,
+iterations, loss weights, data ds_pff2 and seed all unchanged: ONE recipe per size, no tuning; exact widths are fixed by
+the parameter targets before training and recorded). Expectation stated in advance: a moderate size may help, 20M
+probably overfits (Temba ladder). Steps: (1) PFF out-of-fold screen, 48 games, paired vs r5_ptr_ballc. (2) Only the size
+with the best PFF screen goes on, and only if it is better than ballc there by >= 1 SE; it then gets DFL LOGO folds + full.
+(3) Member gate, alone and paired vs r5_ptr_ballc: DFL fine4 >= +0.005 and >= 2 SE; SkillCorner fine3 not worse by > 1 SE;
+Metrica dev not worse by > 0.010. (4) If it passes: one final = the standing pick's members with the pointer swapped, same
+nested-g1 MBR; it replaces the standing pick only if its (DFL + SkillCorner) gain sum exceeds 2 SE and Metrica is not worse
+by > 0.010. This final is separate from the single final allowed by the 11:20 / 11:50 addenda (already scored: F4s).
+Cut-off 12:00 CST 12 Nov. No public 5 minutes, no FOOTPASS; BAR-ATH / FOOTPASS stay on the Mac. Inference stays numpy.
+
+ADDENDUM 2026-11-10 14:05 (user: "how can we test ensemble value" -> "ok lets run 1 and 2"), written before any vote
+with a transformer member was scored. Ensemble-value screen for the best transformer of each family, both chosen by
+their PFF score alone already seen: s2_temba_d128L9 and b2_asformer_d128L9. On the 48 PFF games (out-of-fold):
+Level 1 (descriptive, no rule): how often each disagrees with the 4-member vote, and who is right on those frames.
+Level 2: 4-member MBR vote P4 = (o_ls05, m5c_C192ls, radar_pff, r5_ptr_ballc) (the plain TCN stands in for the TTA4+a50
+member, which has no PFF outputs) vs P4 + transformer as fifth member, decoder fixed at F4b's shipped config
+(hmm, alpha 1.0, rho 0.2, margin 0.0); score fine3, paired by game. Secondary: both at their own best g1 config
+(optimistic for both). Rule: a transformer goes on to Bundesliga fold models (level 3) only if the fixed-config
+5-member vote beats P4 by >= 1 SE AND by >= +0.002. At most one transformer (the larger gain) goes on. PFF is a
+screen: the members were selected on these games; nothing ships on this result.
+
+ADDENDUM 2026-11-10 14:55 (user, after the interim PFF screen 0.8M 0.8137 / 2.4M +0.0048 / 5.9M +0.0100 / 19.3M +0.0160
+on 20 games: "if the pointer keeps improving, lets keep growing it"). Written before any size above 19.3M was trained.
+The ladder continues upward in steps of about 3x parameters (about 60M, then about 180M), same construction (D / C / Dp
+widened together, D/heads = 16, everything else unchanged, one recipe per size, no tuning). Stopping rule: a next size
+is trained only if the current largest size beats the previous size on the complete 48-game PFF screen by >= 1 SE
+(paired). Hard stop at about 180M whatever happens (weights and numpy runtime). The 13:30 rule is otherwise unchanged:
+only the size with the best complete PFF screen gets the Bundesliga member gate. To save time, DFL fold models may be
+TRAINED early for the size currently leading the complete screen, but the DFL / SkillCorner / Metrica benches are SCORED
+only for the final best size (one member gate, no second try). Shipping check, separate from the gate and decided by
+the user: weights size and CPU-numpy runtime on the full match must be reported for the qualifying size before any
+submission change.
+
+ADDENDUM 2026-11-10 20:25 CST — user-requested exploratory finals (NOT pre-registered picks)
+The user asked to include the from-scratch +SKC retrains (m5c_C192ls_skc, r5_ptr_ballc_skc), which FAILED their member gate
+(DFL -0.0087 ± 0.0053 and -0.0154 ± 0.0054). Before deciding, two ensemble-level finals are scored with the same finals.py
+nested-g1 procedure, written here before running:
+  X1 = F4sP with MS-TCN -> m5c_C192ls_skc          (tta TCN, m5c_C192ls_skc, radar_pff, r5_ptr_ballc_p20M)
+  X2 = X1 with pointer -> r5_ptr_ballc_skc (0.8M)   (tta TCN, m5c_C192ls_skc, radar_pff, r5_ptr_ballc_skc)
+These are post-hoc: the standing rule (gain-sum DFL+SKC > 2 SE, Metrica not worse > 0.010) is reported for them, but any pick
+of X1/X2 is the user's override of the failed member gate and must be disclosed as such. SKC numbers are cross-validated.
+
+ADDENDUM 2026-11-10 21:10 CST — SkillCorner fine-tune of the 19.3M pointer (user: "ok run that"), written before any training
+Candidate member: r5_ptr_ballc_p20M_skcft = r5_ptr_ballc_p20M fine-tuned on SkillCorner with EXACTLY the recipe, data, folds and
+hyper-parameters used for r5_ptr_ballc_skcft (skc_train/NOTES.md); nothing tuned. One variant only; no second weight / LR / epochs.
+  DFL LOGO: each DFL fold model fine-tuned from the matching p20M fold model; SKC: cross-validated fold models; full model for Metrica.
+Prior to note: the same recipe on the 0.8M pointer FAILED (DFL -0.0099 ± 0.0030), on the MS-TCN it passed.
+Member gate (as the 11:20 / 11:50 +SKC addenda, vs parent r5_ptr_ballc_p20M, alone): SKC-CV gain >= +0.010 and >= 2 SE; DFL not worse by > 1 SE;
+  Metrica not worse by > 0.010.
+If it passes: ONE final F4sPs = F4sP with the pointer swapped (finals.py nested g1). It replaces F4sP if the (DFL + SKC) gain-sum
+  > 2 SE and Metrica is not worse by > 0.010. If the member gate fails, no final is scored and F4sP stands.
+Public 5 minutes: not used. Cut-off 12:00 CST 12 Nov. Weights size / CPU runtime as p20M (no change).
+
+CORRECTION 2026-11-10 20:35 CST (clock check): the two addenda above headed "20:25 CST" and "21:10 CST" carry wrong clock times
+(written from memory, about one hour fast). Both were written before the runs they govern: the first before the X1 / X2 finals
+(about 19:30), the second before the fine-tune was launched (training log start 20:17 CST; addendum written about 20:10).
+
+ADDENDUM 2026-11-10 21:20 CST (clock checked) — user-requested exploratory final after the FAILED gate of r5_ptr_ballc_p20M_skcft
+The user asked to see the ensemble with the fine-tuned 19.3M pointer anyway, and its public-5-minute score. Written before running:
+  X3 = F4sP with the pointer -> r5_ptr_ballc_p20M_skcft (finals.py nested g1; SKC cross-validated).
+This is NOT a pre-registered pick (the member gate failed: DFL -0.0116 ± 0.0044). The standing rule is reported for it; the public
+window score is a curiosity number and, per RULES.md, not a basis for choosing. Any pick of X3 would be a disclosed user override.

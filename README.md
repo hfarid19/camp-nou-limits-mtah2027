@@ -9,18 +9,21 @@
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b"). It runs four
-> models trained only on open tracking of other games (DFL / IDSSE Bundesliga, CC BY 4.0, and PFF FC's
-> free 2022 World Cup data): a label-smoothed TCN ([`nn_pff_tcn`](candidates/nn_pff_tcn), with
+> The submission is [`candidates/final_f4sp`](candidates/final_f4sp/README.md) ("F4sP", v8). It runs
+> four models trained only on open tracking of other games (DFL / IDSSE Bundesliga, CC BY 4.0; PFF FC's
+> free 2022 World Cup data; and, for one model, SkillCorner's A-League open data, MIT, © SkillCorner,
+> released with PySport — credits and licence notices in [TECHNICAL.md, section 4](TECHNICAL.md#4-training-data)):
+> a label-smoothed TCN ([`nn_pff_tcn`](candidates/nn_pff_tcn), with
 > test-time averaging and label-free per-game re-normalisation from [`adapt`](candidates/adapt/README.md)),
-> a wide MS-TCN ([`nn_pff`](candidates/nn_pff/README.md)), a ball radar
-> ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer network
-> ([`nn_pointer`](candidates/nn_pointer)). Their outputs are combined by expected-spellF1 decoding
+> a wide MS-TCN fine-tuned with the SkillCorner games added ([`nn_pff`](candidates/nn_pff/README.md)),
+> a ball radar ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer
+> network with 19.3M parameters ([`nn_pointer`](candidates/nn_pointer)). Expect the run to take
+> about an hour on one thread (54 minutes on a heavily shared Apple M5 Max). Their outputs are combined by expected-spellF1 decoding
 > ([`mbr_decode`](candidates/mbr_decode/README.md)) around the members' vote under the challenge's
 > controlled-possession rule, followed by dead ball before each kick-off. It uses no labels from the
-> provided game. Our previous frozen submission,
-> [`candidates/ensemble_ctrl_v6`](candidates/ensemble_ctrl_v6/README.md), is the reference that F4b
-> was compared against. The approach is described in [TECHNICAL.md](TECHNICAL.md); the benches and
+> provided game. It replaced [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b", v7);
+> our earlier frozen submission, [`candidates/ensemble_ctrl_v6`](candidates/ensemble_ctrl_v6/README.md),
+> is the reference that both were compared against. The approach is described in [TECHNICAL.md](TECHNICAL.md); the benches and
 > every result are in [`candidates/README.md`](candidates/README.md); candidates we built and dropped
 > are in [`candidates/archive`](candidates/archive/README.md).
 
@@ -207,6 +210,10 @@ use: **hackathon.talentarena@mobileworldcapital.com**.
 The code and documentation in this repository are released under the MIT Licence — see
 [LICENSE](LICENSE). **The match data is not covered by it**: it is separately licensed for this
 competition only, under the terms you accept at enrolment.
+
+Camp Nou Limits' models were trained on third-party open data (DFL / IDSSE, PFF FC, SkillCorner);
+their credits and licence notices, including SkillCorner's MIT notice, are in
+[TECHNICAL.md, section 4](TECHNICAL.md#4-training-data).
 
 ```bibtex
 @misc{mtah2027,

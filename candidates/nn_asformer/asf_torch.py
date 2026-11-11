@@ -57,8 +57,8 @@ class _Net(object):
     def forward(self, Xn):
         with torch.no_grad():
             cs, bs = self.net(torch.from_numpy(Xn.astype(np.float32))[None].to(self.dev))
-            return (torch.softmax(cs[-1][0], -1).double().cpu().numpy(),
-                    torch.sigmoid(bs[-1][0]).double().cpu().numpy())
+            return (torch.softmax(cs[-1][0], -1).cpu().double().numpy(),
+                    torch.sigmoid(bs[-1][0]).cpu().double().numpy())
 
     def normalise(self, X):
         return np.nan_to_num((X - self.mean) / self.std)

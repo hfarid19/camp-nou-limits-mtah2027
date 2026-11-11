@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-"""Write Camp Nou Limits' submission CSV: candidates/final_f4b ("F4b").
+"""Write Camp Nou Limits' submission CSV: candidates/final_f4sp ("F4sP").
 
     pip install -r requirements-submission.txt
     python make_submission.py                    # writes evaluation/results/camp_nou_limits.csv
     python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 
 Reads only the competition input (ATD meta + raw tracking, Smart Tagging) through games.py and
-possession_pipeline's readers, runs candidates/final_f4b/pipeline.predict once and writes
-frame,label rows. F4b runs four members, each trained on the 7 DFL + 48 PFF World Cup 2022 games:
+possession_pipeline's readers, runs candidates/final_f4sp/pipeline.predict once and writes
+frame,label rows. F4sP runs four members, each trained on the 7 DFL + 48 PFF World Cup 2022 games
+(the MS-TCN also on the 20 SkillCorner A-League open-data games):
   - the label-smoothed TCN (nn_pff_tcn, tcn_ls.npz), averaged over the input and 4 jittered copies
     of it, with its feature normalisation moved half-way towards the match's own label-free
     feature statistics (candidates/adapt/member_tcn_tta4_a50.py);
-  - the MS-TCN at width 192 with label smoothing (nn_pff, mstcn_c192ls.npz);
+  - the MS-TCN at width 192 with label smoothing, fine-tuned with the 20 SkillCorner games added
+    (nn_pff, mstcn_c192ls_skcft.npz);
   - the ball radar with stacked LightGBM (ball_radar_pff);
-  - the ball-centred possessor-pointer network (nn_pointer, ptr_ballc.npz).
+  - the ball-centred possessor-pointer network at 19.3M parameters (nn_pointer,
+    ptr_ballc_p20m.npz).
 It then decodes them with candidates/mbr_decode: per stretch of play it keeps the candidate label
 sequence (the members' hard vote under v6's rule of 1 s smoothing + 1.25 s controlled-possession
 fold, the vote under 11 other smoothing/fold rules, or a single member) with the highest expected
@@ -23,11 +26,14 @@ are needed: the members load their committed model files (numpy + LightGBM only)
 
 Numerical libraries are pinned to one thread before numpy is imported. That alone does not make
 floating-point results machine-independent; what we tested is that the file is byte-identical
-(sha256 228fe6a47e29a411746a97e9c7f758ad557c2f6acf768343b39932ede8ac4f30) on macOS arm64
-(Accelerate), Linux arm64 (OpenBLAS) and Linux x86-64 under Rosetta emulation (OpenBLAS), with the
-pinned requirements-submission.txt and Python 3.14.6. This script always runs single-threaded; the
-2- and 8-thread runs that gave the same file on macOS went through candidates/final_f4b/match_run.py
-(the same pipeline without the thread pin). Native x86-64 hardware was not tested. See
+(sha256 60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) on macOS arm64
+(Accelerate), Linux arm64 (OpenBLAS; also from a fresh copy of the repository) and Linux x86-64
+under Rosetta emulation (OpenBLAS), with the pinned requirements-submission.txt and Python 3.14.6
+(the Linux containers also need the system OpenMP runtime, libgomp1, for LightGBM). This script
+always runs single-threaded; the unpinned, 2- and 8-thread runs that gave the same file on macOS
+went through candidates/final_f4sp/match_run.py (the same pipeline without the thread pin). Native
+x86-64 hardware was not tested. Expect a long run: about 54 minutes on one thread of a heavily
+shared Apple M5 Max, over 90% of it in the 19.3M-parameter pointer (F4b took 4-7 minutes). See
 TECHNICAL.md, "Reproduction".
 """
 
@@ -51,9 +57,9 @@ import possession_pipeline as pp     # noqa: E402
 
 
 def load_ensemble():
-    """Load candidates/final_f4b/pipeline.py under its own name, as candidates/bench.py does:
+    """Load candidates/final_f4sp/pipeline.py under its own name, as candidates/bench.py does:
     the vote's member loader clears every module called "pipeline" while it loads the members."""
-    path = os.path.join(ROOT, "candidates", "final_f4b", "pipeline.py")
+    path = os.path.join(ROOT, "candidates", "final_f4sp", "pipeline.py")
     spec = importlib.util.spec_from_file_location("camp_nou_limits_ensemble", path)
     module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, os.path.dirname(path))

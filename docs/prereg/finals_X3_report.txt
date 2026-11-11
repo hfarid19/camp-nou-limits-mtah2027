@@ -1,0 +1,7 @@
+== X3 members ['adapt32/o_ls05__tta4_all_a50', 'm5c_C192ls_skcft', 'radar_pff', 'r5_ptr_ballc_p20M_skcft']
+   dfl 0.7538 poss/90 303.3 | vs v6 +0.0253 ± 0.0051 (19/21) | vs F4sP -0.0077 ± 0.0015 (2/21)
+   skc 0.6353 poss/90 277.8 | vs v6 +0.0389 ± 0.0037 (20/20) | vs F4sP +0.0068 ± 0.0015 (15/20)
+   met 0.7423 poss/90 287.0 | vs v6 +0.0138 ± 0.0010 (4/4) | vs F4sP -0.0039 ± 0.0014 (1/4)
+   skc vs v6 at matched possession count +0.0317 ± 0.0030 (20/20)
+   vs F4sP: DFL -0.0077 ± 0.0015 (2/21) SKC +0.0068 ± 0.0015 (15/20) | gain-sum -0.0009 ± 0.0021 | Metrica -0.0039
+== reference F4sP: dfl 0.7615 (poss/90 310.4) skc 0.6285 (poss/90 285.1) met 0.7462 (poss/90 288.0) | vs v6 dfl +0.0330 ± 0.0038 (21/21) skc +0.0321 ± 0.0039 (20/20) met +0.0177 ± 0.0024 (4/4)

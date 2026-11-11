@@ -19,6 +19,13 @@ out-of-fold score exists for such models). The trainers record the mode in every
 SkillCorner A-League training games (SKC-*, $MTAH_WORK/skc_aleague) may be linked into a dataset
 folder; they are in every spec's training set (never scored on these benches); the 5 SKC holdout
 games are refused; the same for FOOTPASS (FP-*, $MTAH_WORK/footpass) and its 13 holdout games.
+Round-5 "+SKC" opt-in (prereg addendum 2026-11-10 11:20 / 11:30): with NN_PFF_SKC_CV=1 the 5 SKC holdout games may be in
+the dataset (all 20 SKC games train; FOOTPASS's holdout is still refused) and two more specs exist:
+    skc<k>   all training data except the 5 SkillCorner games of cross-validation fold k (k = 0-2: the folds of
+             candidates/adapt/skc_folds.json, k = 3: the 5 SKC holdout games)
+    nowin    all training data, but the rows of the "10-minutes-out" window of every SKC game (+ 30 s guard each side,
+             $MTAH_WORK/skc_aleague/window10.json, candidates/skc/window10.py) are dropped
+Without the variable nothing changes (skc<k> / nowin are refused).
 """
 
 import glob
@@ -46,10 +53,41 @@ def allow_holdout():
     return os.environ.get("NN_PFF_ALLOW_HOLDOUT", "") == "1"
 
 
+def skc_cv():
+    """Explicit opt-in (env NN_PFF_SKC_CV=1): all 20 SkillCorner games may train; specs skc<k> / nowin."""
+    return os.environ.get("NN_PFF_SKC_CV", "") == "1"
+
+
+def skc_cv_folds():
+    """The 4 SkillCorner cross-validation folds of 5 games (adapt/skc_folds.json + the 5 SKC holdout games)."""
+    folds = json.load(open(os.path.join(CAND, "adapt", "skc_folds.json")))
+    hold = json.load(open(os.path.join(WORK, "skc_aleague", "holdout_games.json")))["holdout"]
+    folds = [list(f) for f in folds] + [list(hold)]
+    allg = [g for f in folds for g in f]
+    assert len(folds) == 4 and len(allg) == 20 == len(set(allg)), folds
+    return folds
+
+
+def skc_window_drop():
+    """{SKC game: (a, b)} rows never trained on under spec nowin (the 10-minute window + guard)."""
+    w = json.load(open(os.path.join(WORK, "skc_aleague", "window10.json")))["games"]
+    return {g: tuple(v["drop"]) for g, v in w.items()}
+
+
+def keep_rows(spec, g, idx):
+    """Row mask of a ds file's idx under the spec (all True except SKC window rows under nowin)."""
+    if spec != "nowin" or not g.startswith("SKC-"):
+        return None
+    a, b = skc_window_drop()[g]
+    return (idx < a) | (idx >= b)
+
+
 def skc_holdout():
     """Holdout games of the extra datasets (SkillCorner A-League, FOOTPASS): never trained on."""
     out = set()
     for d in ("skc_aleague", "footpass"):
+        if d == "skc_aleague" and skc_cv():
+            continue
         p = os.path.join(WORK, d, "holdout_games.json")
         if os.path.isfile(p):
             out |= set(json.load(open(p))["holdout"])
@@ -77,6 +115,10 @@ def excluded(spec):
         return {"PFF-" + g for g in pff_folds()[int(spec[3:])]}
     if spec.startswith("dfl"):
         return {dfl_matches()[int(spec[3:])]}
+    if spec.startswith("skc") and skc_cv():
+        return set(skc_cv_folds()[int(spec[3:])])
+    if spec == "nowin" and skc_cv():
+        return set()
     raise ValueError(spec)
 
 
@@ -168,6 +210,9 @@ def load(ds_dir, spec, dfl_fold_s=0.0, pff_fold_s=0.0, max_files=None):
         z = np.load(p)
         names, kinds = [str(s) for s in z["names"]], [str(s) for s in z["kinds"]]
         X = z["X"]
+        kr = keep_rows(spec, g, idx)
+        if kr is not None:
+            y, bha, bd, yc, idx, half, X = (v[kr] for v in (y, bha, bd, yc, idx, half, X))
         # sequences: break at a half change / hole in the stride-5 grid (= prep_data.py)
         brk = np.concatenate(([True], (np.diff(idx) != 5) | (np.diff(half) != 0)))
         sid = np.cumsum(brk) - 1
