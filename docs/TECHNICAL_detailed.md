@@ -1,4 +1,8 @@
-# Camp Nou Limits — Phase 1 technical document
+# Camp Nou Limits — Phase 1 technical document (detailed record up to version 8)
+
+> **Note (11 Nov 2026).** This file is the full record as of submission v8 (`candidates/final_f4sp`). The final
+> submission is v9 (`candidates/final_f4spm`): see `TECHNICAL.md` for the summary, `candidates/final_f4spm/README.md`
+> for the build, and `docs/reports/` for the size study, the 11M radar and the Metrica experiments.
 
 Team Camp Nou Limits, More than a Hack 2027, Phase 1 (ball possession).
 Repository: this one. Reproduce the submission with `python make_submission.py` (see

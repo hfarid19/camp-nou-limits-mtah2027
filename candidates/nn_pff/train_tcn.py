@@ -15,6 +15,9 @@ config folder of the same architecture: fine-tune its model of the same spec) an
 dfl). Team-swap augmentation p = 0.5, applied to the prepared input with
 the permutation that the symmetric normalisation makes exact. Files: fold_pff_<k>.npz,
 fold_tcn_<g>.npz (bench dfl_folds name), full.npz, each with `train_games` and `spec`.
+Round-5 Metrica opt-in (prereg addendum 2026-11-11 12:50 CST): MET-* files (met_ft/met_data.py) in the dataset folder are
+ordinary non-DFL training games (sampled with PFF by length, recipe unchanged); spec met<k> (data.py, NN_PFF_MET=1)
+-> fold_met_<k>.npz. Without MET-* files nothing changes.
 """
 
 import argparse
@@ -119,6 +122,7 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     permf = np.concatenate([perm, [len(perm) + pos[int(perm[j])] for j in ind]])
     signf = np.concatenate([signs, np.ones(len(ind), np.float32)])
     data = []
+    seq_games = [q[0] for q in seqs]
     for g, X, y, b in seqs:
         wt = np.ones(len(y), np.float32)
         if cfg["trans_w"] > 0:
@@ -137,6 +141,10 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
         w[isd] *= cfg["w_dfl"] / w[isd].sum()
         w[~isd] *= (1 - cfg["w_dfl"]) / w[~isd].sum()
     w /= w.sum()
+    ism = np.array([g.startswith("MET-") for g in seq_games])
+    if ism.any():   # Metrica opt-in (NN_PFF_MET / MET-* files): sampled with the non-DFL pool, recipe unchanged
+        log("Metrica: {} seqs, sampling share {:.4f} (games {})".format(
+            int(ism.sum()), float(w[ism].sum()), ",".join(sorted({g for g in seq_games if g.startswith("MET-")}))))
     log("spec {} games {} (PFF {}, DFL {}) seqs {} steps {} load {:.0f}s".format(
         spec, len(games), sum(g.startswith("PFF") for g in games), sum(g.startswith("DFL") for g in games),
         len(data), int(lens.sum()), time.time() - t0))
@@ -223,6 +231,8 @@ def out_name(out, spec):
         return os.path.join(out, "full.npz")
     if spec.startswith("pff"):
         return os.path.join(out, "fold_pff_{}.npz".format(int(spec[3:])))
+    if spec.startswith("met"):
+        return os.path.join(out, "fold_met_{}.npz".format(int(spec[3:])))
     return os.path.join(out, "fold_tcn_{}.npz".format(int(spec[3:])))
 
 

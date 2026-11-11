@@ -26,6 +26,9 @@ the dataset (all 20 SKC games train; FOOTPASS's holdout is still refused) and tw
     nowin    all training data, but the rows of the "10-minutes-out" window of every SKC game (+ 30 s guard each side,
              $MTAH_WORK/skc_aleague/window10.json, candidates/skc/window10.py) are dropped
 Without the variable nothing changes (skc<k> / nowin are refused).
+Round-5 "skcmetft" opt-in (prereg addendum 2026-11-11 12:30 CST): with NN_PFF_MET=1 one more spec exists:
+    met<k>   all training data except Metrica Sample Game k (MET-G<k>, k = 1-3; $MTAH_WORK/ds_met, met_ft/met_data.py)
+Without the variable nothing changes (met<k> is refused).
 """
 
 import glob
@@ -56,6 +59,11 @@ def allow_holdout():
 def skc_cv():
     """Explicit opt-in (env NN_PFF_SKC_CV=1): all 20 SkillCorner games may train; specs skc<k> / nowin."""
     return os.environ.get("NN_PFF_SKC_CV", "") == "1"
+
+
+def met_opt():
+    """Explicit opt-in (env NN_PFF_MET=1): spec met<k> (Metrica leave-one-game-out)."""
+    return os.environ.get("NN_PFF_MET", "") == "1"
 
 
 def skc_cv_folds():
@@ -119,6 +127,10 @@ def excluded(spec):
         return set(skc_cv_folds()[int(spec[3:])])
     if spec == "nowin" and skc_cv():
         return set()
+    if spec.startswith("met") and met_opt():
+        k = int(spec[3:])
+        assert k in (1, 2, 3), spec
+        return {"MET-G{}".format(k)}
     raise ValueError(spec)
 
 

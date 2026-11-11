@@ -28,6 +28,11 @@ Round-5 "+SKC" opt-ins (not in CFG; absent = unchanged): cfg w_skc (> 0: total s
 < 0: their share of the spec's training games; DFL keeps w_dfl, PFF the rest), and with an init folder the data.py
 specs skc<k> / nowin (NN_PFF_SKC_CV=1) start from the folder's full.npz (it never saw a SkillCorner game); their
 files are fold_skc_<k>.npz / nowin.npz.
+Round-5 "skcmetft" opt-in (prereg addendum 2026-11-11 12:30 CST; absent = unchanged): cfg w_met (only together with
+w_skc; > 0: total sampling share of the MET-* files (Metrica sample games, met_ft/met_data.py); < 0: their share of the
+spec's training games; PFF gets 1 - w_dfl - w_skc - w_met), and with an init folder the data.py spec met<k>
+(NN_PFF_MET=1) starts from the folder's full.npz (it never saw a Metrica game); its file is fold_met_<k>.npz.
+MET-* files in the dataset without w_met are refused.
 torch is used for training only.
 """
 
@@ -145,7 +150,7 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     mean, std = sym_stats(seqs, perm, signs)
     init = None
     if cfg["init"]:
-        ispec = "full" if (spec.startswith("skc") or spec == "nowin") else spec   # full: no SKC game seen
+        ispec = "full" if (spec.startswith("skc") or spec == "nowin" or spec.startswith("met")) else spec   # full: no SKC / MET game seen
         ip = out_name(cfg["init"], ispec) if os.path.isdir(cfg["init"]) else cfg["init"]   # same spec: no leak
         init = np.load(ip)
         assert str(init["spec"]) == ispec, (ip, str(init["spec"]), spec)
@@ -153,6 +158,9 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
         mean, std = init["mean"].astype(np.float64), init["std"].astype(np.float64)   # keep the input scale
         games = sorted(set(games) | {str(g) for g in init["train_games"]})
     is_skc = np.array([s[0].startswith("SKC-") for s in seqs])
+    is_met = np.array([s[0].startswith("MET-") for s in seqs])
+    w_met = cfg.get("w_met", 0)
+    assert not is_met.any() or (w_met and cfg.get("w_skc", 0)), "MET-* files need cfg w_met (and w_skc)"
     normed = []
     for g, X, y, b in seqs:
         Xn = np.nan_to_num((X - mean) / std).astype(np.float16)
@@ -168,12 +176,22 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device="cpu"):
     if w_skc and is_skc.any():
         if w_skc < 0:
             w_skc = sum(g.startswith("SKC-") for g in games) / len(games)
-        pff = ~isd & ~is_skc
+        if w_met and is_met.any():      # opt-in (skcmetft); absent: w_met = 0, masks / shares unchanged
+            if w_met < 0:
+                w_met = sum(g.startswith("MET-") for g in games) / len(games)
+            w[is_met] *= w_met / w[is_met].sum()
+        else:
+            w_met = 0
+        pff = ~isd & ~is_skc & ~is_met
         w[is_skc] *= w_skc / w[is_skc].sum()
-        w[pff] *= (1 - cfg["w_dfl"] - w_skc) / w[pff].sum()
+        w[pff] *= (1 - cfg["w_dfl"] - w_skc - w_met) / w[pff].sum()
         log("sampling shares: DFL {:.3f} SKC {:.3f} ({} games) PFF {:.3f}".format(
             w[isd].sum() / w.sum(), w[is_skc].sum() / w.sum(), sum(g.startswith("SKC-") for g in games),
             w[pff].sum() / w.sum()))
+        if w_met:
+            log("sampling share: MET {:.4f} ({} games: {})".format(
+                w[is_met].sum() / w.sum(), sum(g.startswith("MET-") for g in games),
+                ",".join(g for g in games if g.startswith("MET-"))))
     w /= w.sum()
     log("spec {} games {} (PFF {}, DFL {}) seqs {} steps {} load {:.0f}s".format(
         spec, len(games), sum(g.startswith("PFF") for g in games), sum(g.startswith("DFL") for g in games),
@@ -282,6 +300,8 @@ def out_name(out, spec):
         return os.path.join(out, "fold_skc_{}.npz".format(int(spec[3:])))
     if spec == "nowin":
         return os.path.join(out, "nowin.npz")
+    if spec.startswith("met"):
+        return os.path.join(out, "fold_met_{}.npz".format(int(spec[3:])))
     return os.path.join(out, "fold_tcn_{}.npz".format(int(spec[3:])))
 
 

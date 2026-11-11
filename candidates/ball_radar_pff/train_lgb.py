@@ -92,6 +92,8 @@ def main():
         t0 = time.time()
         for k in args.specs.split(","):
             stem = "fold_br{}_{}".format(which, k[3:]) if k.startswith("dfl") else "fold_pff_br{}_{}".format(which, k[3:])
+            if k.startswith("met"):    # opt-in (BRP_MET=1): Metrica leave-one-game-out LightGBM fold
+                stem = "fold_met_br{}_{}".format(which, k[3:])
             cpath = os.path.join(args.folds_out, stem + ".curve.npy")
             if args.full_only or os.path.isfile(cpath):
                 curves.append(np.load(cpath))

@@ -70,6 +70,8 @@ def main():
     for k in args.radar:
         p = os.path.join(A, "radar_full.npz") if k == "full" else \
             os.path.join(A, "folds", "fold_pff_radar_{}.npz".format(k[3:]) if k.startswith("pff") else "fold_radar_{}.npz".format(k[3:]))
+        if k.startswith("met"):    # opt-in (BRP_MET=1, brp_common): Metrica leave-one-game-out radar
+            p = os.path.join(A, "folds", "fold_met_radar_{}.npz".format(k[3:]))
         W[k] = rc.load_weights(p)
     allg = bc.games()
     for j in (args.games or list(allg)):

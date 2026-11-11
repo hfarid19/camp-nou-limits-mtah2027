@@ -12,6 +12,8 @@ Train the Ball Radar network (torch, CPU) and export numpy weights (.npz).
 --exclude takes game indices (positions in the sorted DFL game list) that must not be seen:
 none = the full model, one = a leave-one-game-out fold model, two = a nested model (used to
 make out-of-fold radar features for the stacked LightGBM). Never imports lightgbm (libomp).
+Round-5 opt-in (BRP_MET=1, Metrica games): frames whose clean-ball target is missing get ball-loss weight 0 (that branch
+never runs on DFL / PFF data, whose clean ball is never missing).
 
 Architecture (radar_common.forward is the numpy mirror): per-slot MLP -> one set-attention block
 over all slots of a frame (permutation-equivariant) -> per-team mean/max pooling (partially
@@ -242,7 +244,12 @@ def main():
                          torch.where(tt["code"] < 2, torch.ones_like(seen, dtype=torch.float32),
                                      torch.full_like(seen, args.w_deadgap, dtype=torch.float32)))
         wb = wb * valid.float()
-        lb = (Fn.smooth_l1_loss(out["ball"], tt["ball"].float(), beta=0.5, reduction="none").sum(-1)
+        tball = tt["ball"].float()
+        bnan = torch.isnan(tball).any(-1)
+        if bool(bnan.any()):   # round-5 opt-in: Metrica's clean ball can be missing (never DFL / PFF): no ball loss there
+            wb = wb * (~bnan).float()
+            tball = torch.nan_to_num(tball, nan=0.0)
+        lb = (Fn.smooth_l1_loss(out["ball"], tball, beta=0.5, reduction="none").sum(-1)
               * wb).sum() / wb.sum().clamp(min=1.0)
         own = tt["owner"].clone()
         own[~valid] = -1

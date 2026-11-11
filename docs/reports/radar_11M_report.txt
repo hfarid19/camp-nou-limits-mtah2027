@@ -1,0 +1,65 @@
+radar_pff_w100 (11,235,330-parameter "wide" Ball Radar) — full fold set, member scores, F4sP-w final
+Rule: arch/round5_prereg.txt, ADDENDUM 2026-11-11 10:30 CST (unchanged). Written 11 Nov 2026 ~15:20 CST. Log: NOTES.md.
+
+1. BUILD
+- Radar nets (widths D 328, Hp 328, Hb 656, C 656; iters 3200; recipe otherwise radar_pff), md5 of the copies used:
+  pff0 c2425697 (pod cuda), pff1 e775fd79 / pff2 550874a1 / pff3 b4524916 (Mac mps), dfl0 926be98b / dfl1 03217797 /
+  dfl2 f878bc1a / dfl3 158e4458 / dfl4 688053a9 / dfl5 759c3395 / dfl6 ded932bf / full 73dcfc45 (pod cuda).
+- Features: 11 specs x 55 games via feat_data.py with radar_torch.py float64 (pod CUDA; 7 files Mac CPU torch);
+  one game checked identical to the numpy build for both the CUDA and the Mac-CPU path. No MPS (float32) file:
+  the MPS check gave max |dX| 1.9e-4 (> 1e-4 acceptance limit).
+- LightGBM 4.7.0 on the Mac, train_lgb.py procedure unchanged, into a NEW folder (cand/); shipped files untouched.
+  Full-model rounds / LOGO log loss: d 487 / 0.0637, ha 499 / 0.1850, c 477 / 0.1012
+  (shipped radar_pff: d 235 / 0.0721, ha 498 / 0.1974, c 481 / 0.1039).
+- Scoring: pipeline_w64.py with BRP_WEIGHTS=cand, radar forward = validated torch port on pod CUDA float64; DFL via
+  code/pipeline_w100_dfl.py (see NOTES 14:55: bench --dfl2 had silently reverted to numpy; fixed, outputs discarded).
+  DFL fold lookup verified (each DFL game resolved fold_radar_<g>; PFF resolve.log: 4 out-of-fold files per game, 48 games).
+  Spot check of the scoring path: SkillCorner 1874553 via the plain numpy pipeline (pod CPU, 506 s) vs the CUDA output:
+  probabilities max |d| 0.0, 0 of 150,702 frames' codes differ.
+
+2. MEMBER ALONE, radar_w100 vs shipped radar_pff (paired mean ± SE, wins/n)
+  DFL LOGO fine4 (21 game-seeds, SE over 7 games)  0.7152 vs 0.6988   +0.0164 ± 0.0019 (20/21)
+  SkillCorner fine3 (20 games)                     0.5940 vs 0.5855   +0.0085 ± 0.0029 (16/20)
+  PFF out-of-fold fine3 (48 games)                 0.7457 vs 0.7215   +0.0241 ± 0.0028 (43/48)
+  Metrica dev spellF1 (2 games x 2 seeds)          0.7421 vs 0.7345   +0.0076 ± 0.0072 (3/4)
+
+3. FINAL, F4sP-w vs F4sP (candidates/nn_pointer/finals.py; MBR, g1 grid; decoder nested per DFL game; full-DFL pick for
+   SkillCorner / Metrica; MS-TCN's cross-validated SkillCorner outputs as for F4sP)
+  decoder pick: src hmm, alpha 0.1, rho 0.2, margin 0.0 — the full-DFL pick and all 7 nested picks (= F4sP's CFG)
+                       F4sP-w    F4sP      F4sP-w - F4sP               poss/90 (F4sP-w / F4sP)
+  DFL fine4 (21)       0.7615    0.7615    -0.0000 ± 0.0021 (10/21)    310.8 / 310.4
+  SkillCorner (20)     0.6285    0.6285    +0.0001 ± 0.0014 (11/20)    283.6 / 285.1
+  gain sum DFL + SKC                       +0.0000 ± 0.0026
+  Metrica dev          0.7425    0.7462    -0.0037 ± 0.0015 (0/4)      291.1 / 288.0
+  vs v6: DFL +0.0329 ± 0.0049 (20/21), SKC +0.0321 ± 0.0034 (20/20), Metrica +0.0140; SKC at matched possession count
+  +0.0294 ± 0.0030 (20/20).
+
+4. VERDICT under the 10:30 rule: FAIL. Gain sum +0.0000 ± 0.0026 is not > 2 SE (needed > +0.0052). Neither bench worse
+   by > 1 SE (DFL -0.0000 vs SE 0.0021; SKC +0.0001), Metrica -0.0037 (within the 0.005 limit), byte-identity not run
+   (no pipeline built: not needed once the gain-sum gate fails). F4sP (v8) stays. Nothing in the submission changed.
+
+5. SHIPPING COST of the wide radar
+- Weights: radar.npz 44,954,026 B (45.0 MB) vs 456,938 B shipped; boosters 1.76 / 1.79 / 1.70 MB (shipped 0.85 / 1.79 /
+  1.72 MB). The member's weights would grow from ~4.8 MB to ~50 MB.
+- CPU time of the radar forward (both runs of the home/away symmetrisation), 1 thread, PFF-10504 (151,824 frames,
+  101.2 min), timed on 2 x 15,000 frames and scaled linearly: numpy ~125 s per match, torch CPU float64 ~121 s per match.
+- Memory: peak RSS for those 2 x 15,000 frames numpy 10.1 GB, torch 6.0 GB; a full-match numpy run passed 18.1 GB after
+  18 s and was stopped (16 GB budget on the Mac); extrapolated full-match peak numpy ~35 GB, torch-CPU ~15-16 GB (seen:
+  14-16 GB in the Mac feature processes). The forward keeps all per-slot GRU activations of a half; shipping it on numpy
+  would need ~40 GB of RAM per match or a streaming forward.
+
+6. WHAT FAILED / INCIDENTS
+- 12:21 the Mac ran out of memory and rebooted: my feature pool (orphaned workers of a restarted driver + new ones; real
+  RSS ~14 GB each, not the 3.7 GB I had read early) plus other jobs. Afterwards: <= 1 feature process, budget checks,
+  then no Mac feature work at all (CPU float64 needs 14-16 GB per process).
+- Pod feature stage was CPU-bound (radar GRU in float64 on CUDA is a per-timestep loop; container quota 6.8 cores),
+  ~200 s per spec per game in long-running workers vs ~75 s in fresh ones; pod downloads ~0.6 MB/s per stream (fixed with
+  6 parallel rsync streams; pod copies truncated after md5 + load checks to protect the pod disk).
+- First DFL scoring attempt ran numpy (module purge in bench --dfl), killed, rerun through a wrapper.
+- radar_torch.py's MPS path cannot return results (.double() on an MPS tensor); a fixed copy is in code/radar_torch_mps.py
+  (the repo file is unchanged).
+
+7. SURPRISING
+- The member's large solo gains (DFL +0.0164, 20/21; PFF +0.0241, 43/48; SKC +0.0085) vanish inside the MBR ensemble
+  (DFL -0.0000, SKC +0.0001, Metrica -0.0037): the other three members already carry what the wider radar adds.
+- LightGBM picked 487 rounds for the dead model (shipped 235): the wide radar's features keep improving the dead head.

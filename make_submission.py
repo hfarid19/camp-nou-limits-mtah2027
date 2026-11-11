@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""Write Camp Nou Limits' submission CSV: candidates/final_f4sp ("F4sP").
+"""Write Camp Nou Limits' submission CSV: candidates/final_f4spm ("F4sP-MF2", v9).
 
     pip install -r requirements-submission.txt
     python make_submission.py                    # writes evaluation/results/camp_nou_limits.csv
     python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 
 Reads only the competition input (ATD meta + raw tracking, Smart Tagging) through games.py and
-possession_pipeline's readers, runs candidates/final_f4sp/pipeline.predict once and writes
-frame,label rows. F4sP runs four members, each trained on the 7 DFL + 48 PFF World Cup 2022 games
-(the MS-TCN also on the 20 SkillCorner A-League open-data games):
+possession_pipeline's readers, runs candidates/final_f4spm/pipeline.predict once and writes
+frame,label rows. v9 is F4sP (v8, candidates/final_f4sp) with its MS-TCN replaced by one that was also
+fine-tuned on Metrica Sample Games 1-3. It runs four members, each trained on the 7 DFL + 48 PFF
+World Cup 2022 games (the MS-TCN also on the 20 SkillCorner A-League games and the 3 Metrica games):
   - the label-smoothed TCN (nn_pff_tcn, tcn_ls.npz), averaged over the input and 4 jittered copies
     of it, with its feature normalisation moved half-way towards the match's own label-free
     feature statistics (candidates/adapt/member_tcn_tta4_a50.py);
   - the MS-TCN at width 192 with label smoothing, fine-tuned with the 20 SkillCorner games added
-    (nn_pff, mstcn_c192ls_skcft.npz);
+    and then with the 3 Metrica sample games mixed in (nn_pff, mstcn_c192ls_skcft_metft.npz);
   - the ball radar with stacked LightGBM (ball_radar_pff);
   - the ball-centred possessor-pointer network at 19.3M parameters (nn_pointer,
     ptr_ballc_p20m.npz).
@@ -32,17 +33,22 @@ both give the same file. Which one ran is printed on stderr.
 
 Numerical libraries (and the torch worker) are pinned to one thread before numpy is imported. That
 alone does not make floating-point results machine-independent; what we tested is that the file is
-byte-identical (sha256 60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) on macOS
+byte-identical (sha256 9926b7c56557a7aedb39597b7c2f52b37c82028d01b394021a360bb3aabcb3e2; v8 with
+--candidate final_f4sp: 60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) on macOS
 arm64 (Accelerate), Linux arm64 (OpenBLAS; also from a fresh clone of the repository) and Linux
 x86-64 under Rosetta emulation, with the pinned requirements-submission.txt and Python 3.14.6 (the
 Linux containers also need the system OpenMP runtime, libgomp1, for LightGBM), with the torch
-backend and, when v8 was first built, with the numpy backend. This script always runs
+backend (v8 also with the numpy backend when it was first built; not re-run for v9). This script always runs
 single-threaded; the 2- and 8-thread runs that gave the same file on macOS went through
-candidates/final_f4sp/match_run.py (the same pipeline without the thread pin). Native x86-64
-hardware was not tested. Run time with torch: 3-10 minutes on one thread of a shared Apple M5 Max
-(depending on what else ran), 15 minutes in a Linux arm64 container; with numpy about 54 minutes on
-one thread of a heavily shared Apple M5 Max, over 90% of it in the 19.3M-parameter pointer. See
-TECHNICAL.md, "Reproduction".
+candidates/final_f4spm/match_run.py (the same pipeline without the thread pin). Native x86-64
+hardware was not tested. Run time with torch: 2-2.5 minutes on one thread of a lightly loaded Apple M5 Max (v8: 3-10
+minutes on a shared one), 8-16 minutes in a Linux arm64 container; with numpy (v8) about 54 minutes
+on one thread of a heavily shared Apple M5 Max, over 90% of it in the 19.3M-parameter pointer. See
+TECHNICAL.md, section 6 "How to Reproduce".
+
+--candidate picks the ensemble folder under candidates/ (default: DEFAULT_CANDIDATE = final_f4spm,
+the submission above). final_f4sp ("F4sP", v8, the previous submission) is opt-in; a non-default candidate
+needs an explicit --out, so it never overwrites evaluation/results/camp_nou_limits.csv by accident.
 """
 
 import os
@@ -65,10 +71,14 @@ import possession_metrics as pm      # noqa: E402
 import possession_pipeline as pp     # noqa: E402
 
 
-def load_ensemble():
-    """Load candidates/final_f4sp/pipeline.py under its own name, as candidates/bench.py does:
+DEFAULT_CANDIDATE = "final_f4spm"
+CANDIDATES = ("final_f4sp", "final_f4spm")
+
+
+def load_ensemble(candidate=DEFAULT_CANDIDATE):
+    """Load candidates/<candidate>/pipeline.py under its own name, as candidates/bench.py does:
     the vote's member loader clears every module called "pipeline" while it loads the members."""
-    path = os.path.join(ROOT, "candidates", "final_f4sp", "pipeline.py")
+    path = os.path.join(ROOT, "candidates", candidate, "pipeline.py")
     spec = importlib.util.spec_from_file_location("camp_nou_limits_ensemble", path)
     module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, os.path.dirname(path))
@@ -78,8 +88,14 @@ def load_ensemble():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--out", default=os.path.join(ROOT, "evaluation", "results", "camp_nou_limits.csv"))
+    ap.add_argument("--out", default=None,
+                    help="default for the default candidate: evaluation/results/camp_nou_limits.csv")
+    ap.add_argument("--candidate", choices=CANDIDATES, default=DEFAULT_CANDIDATE)
     args = ap.parse_args()
+    if args.out is None:
+        if args.candidate != DEFAULT_CANDIDATE:
+            ap.error("--candidate {} is not the submission: give --out explicitly".format(args.candidate))
+        args.out = os.path.join(ROOT, "evaluation", "results", "camp_nou_limits.csv")
     from games import GAME, GAMES, require, source_frames, half_video_blocks
     meta_path, raw_path = require(["atd_meta", "atd_raw"], GAME)
     tag_path = require(["smart_tagging"], GAME)[0]
@@ -88,7 +104,7 @@ def main():
     players, ball = pp.read_atd(raw_path, n_frames, len(slot_team), GAMES[GAME]["pitch"])
     tags = pp.read_tags(tag_path)
     blocks = half_video_blocks(GAME)
-    ensemble = load_ensemble()
+    ensemble = load_ensemble(args.candidate)
     codes = np.asarray(ensemble.predict(players, slot_team, ball, sign_half1, blocks, tags, names,
                                         GAMES[GAME]["pitch"], GAMES[GAME]["fps"]), np.int8)
     assert codes.shape == (n_frames,), codes.shape

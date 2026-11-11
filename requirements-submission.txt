@@ -1,7 +1,7 @@
 # Inference only: everything make_submission.py needs (Python 3.14.6).
 # torch (CPU only) runs the pointer member's forward pass in float64; the extra index serves the CPU-only wheel
 # (2.15.0+cpu) on Linux and Windows, and macOS gets the standard wheel. Without torch the pipeline falls back to
-# its numpy forward pass: the same CSV, but about 50 minutes instead of a few (see TECHNICAL.md, "Reproduction").
+# its numpy forward pass: the same CSV, but about 54 minutes instead of a few (see TECHNICAL.md, section 6 "How to Reproduce").
 --extra-index-url https://download.pytorch.org/whl/cpu
 numpy==2.5.4
 pandas==3.1.1

@@ -16,6 +16,10 @@ Round-5 "+SKC" opt-ins (absent = unchanged): --w-skc S (> 0: total sampling shar
 of the spec's training games; DFL keeps w_dfl, PFF the rest), --init DIR (fine-tune: start from DIR's model of the same
 spec, or DIR/full.npz for the data.py specs skc<k> / nowin, keeping its normalisation), and those specs themselves
 (NN_PFF_SKC_CV=1; files fold_skc_<k>.npz / nowin.npz, as train_mstcn.out_name). Used values are recorded in the cfg.
+Round-5 "Metrica" opt-in (prereg addenda 2026-11-11 12:30 / 12:50 CST; absent = unchanged): --w-met S (> 0: total sampling
+share of the MET-* files = Metrica sample games, met_ft/met_data.py; < 0: their share of the spec's training games; DFL keeps
+w_dfl, SKC its w_skc, PFF the rest), the data.py spec met<k> (NN_PFF_MET=1; with --init it starts from DIR/full.npz, file
+fold_met_<k>.npz). MET-* files in the dataset without --w-met are refused.
 """
 
 import argparse
@@ -152,7 +156,7 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device):
     mean, std = TM.sym_stats([(s["g"], s["X"], None, None) for s in seqs], perm, signs)
     init = None
     if cfg.get("init"):
-        ispec = "full" if (spec.startswith("skc") or spec == "nowin") else spec   # full: no SKC game seen
+        ispec = "full" if (spec.startswith("skc") or spec == "nowin" or spec.startswith("met")) else spec   # full: no SKC / MET game seen
         ip = TM.out_name(cfg["init"], ispec)
         init = np.load(ip)
         assert str(init["spec"]) == ispec, (ip, str(init["spec"]), spec)
@@ -169,16 +173,32 @@ def train_spec(ds_dir, spec, out_path, cfg, threads, log, device):
         w[isd] *= cfg["w_dfl"] / w[isd].sum()
         w[~isd] *= (1 - cfg["w_dfl"]) / w[~isd].sum()
     is_skc = np.array([s["g"].startswith("SKC-") for s in seqs])
+    is_met = np.array([s["g"].startswith("MET-") for s in seqs])
+    w_met = cfg.get("w_met", 0)
+    assert not is_met.any() or w_met, "MET-* files need --w-met"
+    if w_met and is_met.any():      # opt-in (Metrica); absent: w_met = 0, masks / shares unchanged
+        if w_met < 0:
+            w_met = sum(g.startswith("MET-") for g in games) / len(games)
+        w[is_met] *= w_met / w[is_met].sum()
+    else:
+        w_met = 0
     w_skc = cfg.get("w_skc", 0)
     if w_skc and is_skc.any():
         if w_skc < 0:
             w_skc = sum(g.startswith("SKC-") for g in games) / len(games)
-        pff = ~isd & ~is_skc
+        pff = ~isd & ~is_skc & ~is_met
         w[is_skc] *= w_skc / w[is_skc].sum()
-        w[pff] *= (1 - cfg["w_dfl"] - w_skc) / w[pff].sum()
+        w[pff] *= (1 - cfg["w_dfl"] - w_skc - w_met) / w[pff].sum()
         log("sampling shares: DFL {:.3f} SKC {:.3f} ({} games) PFF {:.3f}".format(
             w[isd].sum() / w.sum(), w[is_skc].sum() / w.sum(), sum(g.startswith("SKC-") for g in games),
             w[pff].sum() / w.sum()))
+    elif w_met:
+        pff = ~isd & ~is_met
+        w[pff] *= (1 - cfg["w_dfl"] - w_met) / w[pff].sum()
+    if w_met:
+        log("sampling shares: DFL {:.4f} MET {:.4f} ({} games: {}) PFF {:.4f}".format(
+            w[isd].sum() / w.sum(), w[is_met].sum() / w.sum(), sum(g.startswith("MET-") for g in games),
+            ",".join(g for g in games if g.startswith("MET-")), w[pff].sum() / w.sum()))
     w /= w.sum()
     own_all = np.concatenate([s["own"] for s in seqs])
     yall = np.concatenate([s["y"] for s in seqs])
@@ -253,11 +273,14 @@ def main():
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--w-skc", type=float, default=0.0, help="opt-in: SkillCorner sampling share (< 0: share of games)")
     ap.add_argument("--init", default="", help="opt-in: fine-tune from this config folder's models")
+    ap.add_argument("--w-met", type=float, default=0.0, help="opt-in: Metrica sampling share (< 0: share of games)")
     a = ap.parse_args()
     cfg = dict(CFG, **json.loads(a.cfg))
     assert set(cfg) == set(CFG), set(cfg) ^ set(CFG)
     if a.w_skc:
         cfg["w_skc"] = a.w_skc
+    if a.w_met:
+        cfg["w_met"] = a.w_met
     if a.init:
         cfg["init"] = os.path.abspath(a.init)
     os.makedirs(a.out, exist_ok=True)

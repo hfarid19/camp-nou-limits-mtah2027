@@ -7,6 +7,9 @@ games()        -> {name: npz path}: the 7 DFL games (DFL-MAT-*) + the 48 PFF sel
 Work folder: $BRP_ARCH (default $MTAH_WORK/arch/ball_radar_pff), so a 64-game retrain lives apart.
 excluded(spec) -> names a model of that spec must not see: pff<k> = PFF selection fold k,
                   dfl<g> = DFL game g (index in the sorted DFL list, as bench.py), full = none.
+Round-5 "skcmetft" opt-in (prereg addendum 2026-11-11 12:50 CST): with BRP_MET=1 games() also has Metrica Sample Games
+1-3 (MET-G<k>, $MTAH_WORK/met_npz, candidates/met_ft/met_npz.py; strict Metrica-rule labels) and excluded("met<k>") =
+{MET-G<k>}. SPECS is unchanged (the LightGBM rounds rule). Without the variable nothing changes.
 """
 import json
 import os
@@ -16,6 +19,7 @@ WORK = os.environ.get("MTAH_WORK") or os.path.join(
 ARCH = os.path.join(WORK, "arch", "nn_pff")
 ALLOW_HOLDOUT = os.environ.get("NN_PFF_ALLOW_HOLDOUT", "") == "1"
 SPECS = ([] if ALLOW_HOLDOUT else ["pff0", "pff1", "pff2", "pff3"]) + ["dfl{}".format(g) for g in range(7)]
+MET = os.environ.get("BRP_MET", "") == "1"
 BRP_ARCH = os.environ.get("BRP_ARCH") or os.path.join(WORK, "arch", "ball_radar_pff")
 
 
@@ -41,6 +45,9 @@ def games():
     if ALLOW_HOLDOUT:
         for g in hold:
             out["PFF-" + g] = os.path.join(WORK, "pff_wc2022", "npz", "PFF-" + g + ".npz")
+    if MET:
+        for k in (1, 2, 3):
+            out["MET-G{}".format(k)] = os.path.join(WORK, "met_npz", "MET-G{}.npz".format(k))
     return dict(sorted(out.items()))
 
 
@@ -50,6 +57,9 @@ def excluded(spec):
     if spec.startswith("pff"):
         assert not ALLOW_HOLDOUT, "NN_PFF_ALLOW_HOLDOUT=1: no PFF fold specs"
         return {"PFF-" + g for g in pff_folds()[int(spec[3:])]}
+    if spec.startswith("met"):
+        assert MET and int(spec[3:]) in (1, 2, 3), spec
+        return {"MET-G{}".format(int(spec[3:]))}
     return {dfl_matches()[int(spec[3:])]}
 
 

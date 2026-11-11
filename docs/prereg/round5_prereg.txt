@@ -295,3 +295,85 @@ does more repetition hurt; is the train/held-out NLL gap growing with size or re
 SkillCorner difference larger than seed noise (E); are we data-limited and does 20M lose more than the small model when games are
 removed (D). Order: A, C, E, D, B. No model from this addendum can enter a submission without four PFF folds, DFL LOGO fold models,
 the standing gates and byte-identity checks. BAR-ATH / FOOTPASS data never go to the pod.
+
+ADDENDUM 2026-11-11 12:30 CST (user: train the final on all the game data we have, "including the Metrica one";
+written before any of these runs)
+State: shipped full models already train on all 7 DFL + 48 PFF games (fold models exist only for benches); the MS-TCN also
+on 20 SkillCorner games. Left out: 16 PFF holdout games (64-game retrains were neutral, round 4), FOOTPASS (NDA, cannot
+ship), Metrica Sample Games 1-3. The BAR-ATH public 5 minutes are NOT training data (RULES/FAQ) and stay excluded.
+Earlier MET-FT (11:50 B, 10 Nov): MS-TCN held-out Metrica +0.0493 (3/3), DFL +0.0020 ± 0.0022, SkillCorner -0.0026 ± 0.0020
+(failed the 1 SE SkillCorner gate by 0.0006); pointer +0.0140 (3/3), below its +0.015 bar.
+New candidate member (one recipe, nothing tuned): m5c_C192ls fine-tuned with EXACTLY the SKC-FT recipe of the shipped
+m5c_C192ls_skcft, with Metrica Sample Games 1-3 (Metrica-rule labels, as MET-FT) added to the fine-tune data as three more
+games sampled at their share of the training games, i.e. DFL + PFF + SkillCorner + Metrica ("skcmetft").
+Scoring: DFL leave-one-game-out (fold models from the parent's fold models, all SkillCorner + Metrica games in each);
+SkillCorner 4-fold cross-validated as before (all Metrica games in each fold model); Metrica leave-one-game-out over the
+3 games (all SkillCorner games in each). Metrica stops being an independent bench for this member.
+Member gate, alone, paired vs the SHIPPED m5c_C192ls_skcft: held-out Metrica better on every left-out game and mean gain
+>= +0.015; DFL fine4 not worse by > 1 SE; SkillCorner-CV fine3 not worse by > 1 SE.
+Final (one): F4sPm = F4sP with that member, same MBR procedure (decoder settings nested on DFL from the fixed grid g1).
+It replaces F4sP only if, paired vs F4sP: DFL fine4 not worse by > 1 SE, SkillCorner-CV fine3 not worse by > 1 SE, and
+held-out Metrica (ensemble, leave-one-game-out) better on at least 2 of 3 games with mean gain > 0; and the pipeline
+reproduces byte-identically. Evidence on 3 Metrica games is weak by construction; report it as such.
+Pointer: no Metrica variant (it failed its bar on 10 Nov). Cut-off for any submission change: 12:00 CST 14 Nov.
+
+ADDENDUM 2026-11-11 12:50 CST (user: every shipped model should train on Metrica, each at its best-performing size;
+written before any of these runs; extends the 12:30 addendum)
+Sizes. "Best size" is taken as established only where the fold-0 size study shows a gain on BOTH the World Cup fold and
+SkillCorner beyond 1 SE: pointer 19.3M (shipped), radar 11M (radar_pff_w100; its fold set is in training, 10:30 addendum).
+TCN (199M vs 20M vs 0.2M) and MS-TCN (198M / 20M vs 2.6M) differ by less than 0.001 on the three-bench average and gain
+nothing on SkillCorner; they stay at the shipped size unless the seed-noise experiment (repdata E) shows a larger size
+beating the shipped one on SkillCorner by more than the between-seed SD, in which case that size gets a fold set and the
+same gates.
+Metrica-inclusive variants (one recipe per member, nothing tuned; Metrica-rule labels as MET-FT):
+- MS-TCN: as the 12:30 addendum (skcmetft).
+- Pointer r5_ptr_ballc_p20M: the SKC-FT recipe (lr 0.1 x parent, 5 epochs) with ONLY the 3 Metrica games added (no
+  SkillCorner: both SkillCorner fine-tunes of the pointer failed on DFL).
+- TCN o_ls05: retrain from scratch, recipe unchanged, with the 3 Metrica games added to the training games.
+- Radar (radar_pff at the size that ships): retrain from scratch, recipe unchanged, with the 3 Metrica games added
+  (radar network and LightGBM stage).
+Scoring per member, alone, paired vs the member it would replace: DFL leave-one-game-out, SkillCorner 20 games (CV where
+the member trains on SkillCorner), Metrica leave-one-game-out over the 3 games.
+Member gate (user-directed, looser than the 10 Nov MET-FT bar of +0.015): held-out Metrica better on at least 2 of 3
+games with mean gain > 0; DFL fine4 not worse by > 1 SE; SkillCorner fine3 not worse by > 1 SE.
+Final (one): F4sP with every member that passes its gate swapped in (and the 11M radar if the 10:30 rule admits it),
+same MBR procedure; replaces F4sP under the 12:30 final rule. The final shipped models are the "full" ones, trained on
+all games including all 3 Metrica games; leave-one-game-out models are for scoring only.
+
+CORRECTION 2026-11-11 12:28 CST (wall clock): the headers of four addenda written by the coordinator today carry
+estimated times that ran ahead of the wall clock. By the wall clock they were written at about: "08:35" -> 08:15,
+"10:30" -> 10:22, "12:30" -> 11:03, "12:50" -> 11:10. Each was written before the runs it describes (file order and the
+agents' logs confirm this); only the header times are wrong. Later entries use the output of `date`.
+
+ADDENDUM 2026-11-11 12:31 CST (wall clock; user decision after seeing the member results of the 12:50 addendum)
+Member results seen: Metrica-inclusive MS-TCN, pointer and TCN each gain on held-out Metrica (+0.0059 3/3, +0.0045 2/3,
++0.0079 3/3) and lose slightly on DFL and SkillCorner (MS-TCN SKC -0.0070 ± 0.0017); MS-TCN and pointer FAILED the 12:50
+member gate, TCN passed. User: "if our final test is Metrica labelled, that tradeoff is worth it". This is a change of
+rule made AFTER results, at the user's direction; it is recorded as such and must be disclosed in the write-up.
+New final, written before it is scored: "F4sP-M" = F4sP with the Metrica-inclusive MS-TCN (skcmetft), pointer (p20M_metft)
+and TCN (o_ls05_met) swapped in, radar unchanged; same MBR procedure, decoder settings nested on DFL from grid g1.
+(When the radar's Metrica variant and the 11M radar have their own results, at most one further final may add a radar.)
+Rule for F4sP-M to replace F4sP, fixed now: held-out Metrica (ensemble, leave-one-game-out, strict labels) better on at
+least 2 of 3 games AND mean gain >= +0.005; DFL fine4 not worse by more than 0.005; SkillCorner-CV fine3 not worse by more
+than 0.010; pipeline reproduces byte-identically. If the Metrica gain is below +0.005 the swap is not worth its cost on
+the larger benches and F4sP stands.
+Public 5 minutes: at the user's request the Metrica-trained members and F4sP-M are also scored on the public window of
+the match, as a curiosity, AFTER this rule is written. The window has 17 possessions and is not a tuning or selection
+set (RULES/FAQ): its result does not enter the rule above and cannot change the decision. Every such score is disclosed.
+
+ADDENDUM 2026-11-11 12:46 CST (wall clock; written before this is scored)
+F4sP-M failed the 12:31 rule (held-out Metrica +0.0020, 2/3; DFL -0.0042 ± 0.0017; SkillCorner -0.0030 ± 0.0013).
+Observation: pooling Metrica at its share of games (about 4% of sampling) moved single models by +0.005 to +0.008 on
+held-out Metrica; the 10 Nov MET-FT recipe (Metrica mixed 1:1) moved the MS-TCN by +0.0493 (3/3) with DFL +0.0020 ± 0.0022
+and SkillCorner -0.0026 ± 0.0020. One exploratory ensemble, from models and outputs that already exist (no new training):
+"F4sP-MF" = F4sP with its MS-TCN replaced by the 10 Nov MET-FT MS-TCN (m5c_metft; parent m5c_C192ls, so the SkillCorner
+fine-tune is lost in that slot), same MBR procedure. Held-out Metrica by leave-one-game-out with its LOGO models.
+Same rule as 12:31 (Metrica better on >= 2 of 3 games and mean gain >= +0.005; DFL not worse by > 0.005; SkillCorner not
+worse by > 0.010). If it passes, the properly built version (the MET-FT recipe applied to the shipped skcft MS-TCN, with
+its own fold models) is trained and must pass the same rule before any submission change. No public-window score enters.
+NOTE 2026-11-11 14:15 CST to the 10:55 repeated-data addendum (before any E result exists; coordinator / user decision after the
+pod queues were paused for submission work and the Mac rebooted): E's extra seeds and A's four unfinished runs (TCN 20M x4, MS-TCN
+2.6M x4, MS-TCN 20M x2 / x4; killed mid-run on the pod) are trained on the Mac GPU (MPS) instead of the pod (CUDA). So that the three
+seeds of each size share one device, seed 0 is ALSO retrained on MPS for TCN 20M, MS-TCN 2.6M and MS-TCN 20M (their existing
+seed-0 models are CUDA); TCN 0.2M's seed-0 model o_ls05 is already MPS. Device is recorded per model; MPS-vs-CUDA differences are
+device noise and are reported, not hidden. A's MPS runs are compared with both the CUDA seed-0 reference and the MPS seed-0 rerun.

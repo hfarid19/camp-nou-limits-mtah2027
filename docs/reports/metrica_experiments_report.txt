@@ -1,0 +1,196 @@
+skcmetft / Metrica-inclusive members — prereg addenda "2026-11-11 12:30 CST" and "2026-11-11 12:50 CST"
+INTERIM REPORT (11 Nov 2026 ~12:35 CST). The radar is still training and scoring, so the final has not been scored yet.
+Log: arch/r5_arch/skcmetft/NOTES.md. Radar details: arch/r5_arch/skcmetft/radar/NOTES.md.
+
+Rules (round5_prereg.txt; not changed)
+- 12:30 member gate (MS-TCN), alone, paired vs the shipped member:
+  - held-out Metrica (strict labels) better on EVERY game AND mean gain >= +0.015
+  - DFL fine4 not worse by > 1 SE
+  - SkillCorner-CV fine3 not worse by > 1 SE
+- 12:50 member gate (all four members):
+  - held-out Metrica better on >= 2 of 3 games AND mean gain > 0
+  - DFL not worse by > 1 SE
+  - SkillCorner not worse by > 1 SE
+- Final: ONE final = F4sP with every member that passes the 12:50 gate swapped in, using finals.py's nested-g1 MBR.
+  It replaces F4sP only if all of these hold:
+  - DFL not worse by > 1 SE
+  - SkillCorner-CV not worse by > 1 SE
+  - ensemble Metrica (leave one game out) better on >= 2 of 3 games, with mean > 0
+  - the pipeline reproduces byte-identically
+- The addendum heading reads 12:30 CST, but the Mac clock read 11:03 CST when this work started. The addendum was still
+  written before any of these runs.
+
+Scoring conventions
+- Metrica, leave one game out: Sample Games 1-3, bench seeds 2027 and 2028, per game = mean of the 2 seeds. Game k is
+  scored only by the fold_met_<k> model. Strict Metrica-rule labels are primary; practice labels are secondary.
+  Same as MET-FT (met_ft/score_met.py; the MET-FT parent row was reproduced exactly).
+- DFL: bench --dfl2 with the 7 leave-one-game-out fold models: 21 game-seeds, SE over the 7 games.
+- SkillCorner: 20 games. For the MS-TCN, cross-validated over 4 folds against the shipped CV codes. For the others, the full
+  model, as their parents were scored.
+- poss/90 = predicted (and true) possessions per 90 minutes.
+
+1. MS-TCN m5c_C192ls_skcmetft vs the shipped m5c_C192ls_skcft (Mac, exact numpy CPU path, every unit)
+Recipe: the SKC-FT recipe exactly, plus w_met = -1 (Metrica at its share of the games). For the full model the sampling
+shares are: SKC 0.256, MET 0.0385, DFL 0.150, PFF 0.555.
+
+| bench | shipped skcft | skcmetft | diff ± SE (wins) | poss/90: skcft -> skcmetft (truth) |
+|---|---|---|---|---|
+| DFL fine4 (LOGO) | 0.7468 | 0.7457 | -0.0012 ± 0.0008 (9/21) | 330 -> 329 (412) |
+| SkillCorner-CV fine3 | 0.6060 | 0.5989 | -0.0070 ± 0.0017 (3/20) | 302 -> 306 (279) |
+| Metrica LOGO G1, strict | 0.7502 | 0.7512 | +0.0010 | 326 -> 327 (307) |
+| Metrica LOGO G2, strict | 0.7406 | 0.7484 | +0.0078 | 310 -> 303 (283) |
+| Metrica LOGO G3, strict | 0.7436 | 0.7524 | +0.0088 | 360 -> 356 (324) |
+| Metrica mean, strict | | | +0.0059 (3/3) | |
+| Metrica mean, practice | | | +0.0060 (3/3) | |
+
+DFL parts: raw -0.0015, T0.5 -0.0008, T1 -0.0011, evt1 -0.0013.
+
+Verdicts:
+- 12:30 gate: FAIL. The Metrica mean +0.0059 is below +0.015; DFL is worse by 1.5 SE; SkillCorner is worse by 4.1 SE.
+  So the 12:30 single final F4sPm is NOT scored.
+- 12:50 gate: FAIL. Its Metrica part passes (3/3, mean > 0), but DFL and SkillCorner fail.
+
+2. TCN o_ls05_met vs o_ls05 (both scored as the shipped member, TTA4 + all_a50; Mac exact numpy)
+Retrained from scratch on CUDA with the recipe unchanged and Metrica added to the non-DFL pool by length (share 0.0467).
+The parent was trained on MPS, so the paired difference also contains retraining noise.
+
+| bench | o_ls05 | o_ls05_met | diff ± SE (wins) | poss/90 (truth) |
+|---|---|---|---|---|
+| DFL fine4 (LOGO) | 0.7295 | 0.7269 | -0.0026 ± 0.0032 (7/21) | 302 -> 301 (412) |
+| SkillCorner (full model) | 0.6050 | 0.6031 | -0.0019 ± 0.0022 (9/20) | 273 -> 271 (279) |
+| Metrica LOGO strict G1 / G2 / G3 | 0.7908 / 0.7684 / 0.7491 | 0.7968 / 0.7741 / 0.7611 | +0.0060 / +0.0056 / +0.0120; mean +0.0079 (3/3) | 292/273/308 -> 289/266/304 (307/283/324) |
+| Metrica, practice | | | mean +0.0069 (3/3) | |
+
+12:50 gate: PASS. DFL is worse by 0.8 SE and SkillCorner by 0.9 SE, both within 1 SE; Metrica is better on 3/3.
+
+3. Pointer r5_ptr_ballc_p20M_metft vs r5_ptr_ballc_p20M
+Recipe: the SKC-FT recipe with only Metrica added (w_met = -1; full-model share 0.0517).
+Codes come from the pod CUDA path (size2/pod_cuda.py, TF32 off), which is the validated path for this family. Check: the
+parent's Metrica G1/G2 x 2 seeds gave codes identical to the stored Mac codes (max |dP| 3.5e-6). A numpy check of one new
+model (fold_met_1 on G1, pod CPU, numpy 2.5.4) is running: logs/ptr_npchk_pod.log on the pod.
+
+| bench | p20M | p20M_metft | diff ± SE (wins) | poss/90 (truth) |
+|---|---|---|---|---|
+| DFL fine4 (LOGO) | 0.7640 | 0.7624 | -0.00165 ± 0.00157 (9/21) | 335 -> 333 (412) |
+| SkillCorner (full model) | 0.5884 | 0.5854 | -0.0030 ± 0.0017 (7/20) | 309 -> 312 (279) |
+| Metrica LOGO strict G1 / G2 / G3 | 0.8074 / 0.7903 / 0.7807 | 0.8126 / 0.7895 / 0.7898 | +0.0053 / -0.0008 / +0.0091; mean +0.0045 (2/3) | 313/295/351 -> 310/289/344 (307/283/324) |
+| Metrica, practice | | | mean +0.0038 (2/3) | |
+
+12:50 gate: FAIL. DFL is worse by 1.05 SE (marginal) and SkillCorner by 1.8 SE.
+
+4. Radar radar_pff_met (shipped 0.1M radar_pff, retrained from scratch with Metrica added)
+- No candidate scores yet. It runs as a self-driving pod chain (radar/pod_chain.sh, started 18:13 UTC).
+- ETA: features and LightGBM about 12-15 h, then 1-2 h of scoring, so roughly 03:00-06:00 CST on 12 Nov.
+- Parent radar_pff on Metrica (Mac; G1/G2 codes equal the stored bench codes), strict: G1 0.7771, G2 0.7732, G3 0.7596.
+
+5. The final (12:50): NOT YET SCORED
+- It waits for the radar gate.
+- So far only the TCN qualifies. If the radar fails its gate, the single final is F4sP with only the TCN swapped:
+  adapt32/o_ls05_met__tta4_all_a50, m5c_C192ls_skcft, radar_pff, r5_ptr_ballc_p20M.
+- It is scored with jobs/final_run.py (finals.py nested-g1 on DFL + SkillCorner; checked to reproduce F4sP vs F4s exactly)
+  and jobs/final_met_logo.py (ensemble Metrica leave one game out, strict primary).
+- It is not scored early, so that only one final is ever scored.
+- If F4sP' passes, STOP: no submission is built here.
+
+6. Post-result, user-directed rule change (prereg addendum "2026-11-11 12:31 CST"; to be disclosed in the write-up)
+Final F4sP-M = F4sP with the TCN, MS-TCN and pointer replaced by their Metrica-trained versions (o_ls05_met, m5c_C192ls_skcmetft,
+r5_ptr_ballc_p20M_metft); the radar is unchanged.
+- Procedure: finals.py nested-g1 MBR. DFL uses the nested pick per game; SkillCorner-CV and Metrica use the full-DFL pick
+  (hmm, alpha 0.1, rho 0.2, margin 0).
+- Metrica for the ensemble is leave one game out: on game k, the Metrica-trained members use their fold_met_<k> outputs and the
+  others use their full models.
+- Check: the Metrica scorer reproduces finals.py's stored F4sP Metrica-dev values exactly.
+- Rule: held-out Metrica better on >= 2 of 3 games AND mean >= +0.005; DFL not worse by > 0.005; SkillCorner-CV not worse by
+  > 0.010; the pipeline must reproduce byte-identically.
+
+| ensemble (paired vs F4sP) | DFL fine4 | SkillCorner-CV fine3 | Metrica strict G1 / G2 / G3 | Metrica mean (better on) | poss/90 DFL / SKC / Metrica G1-G3 |
+|---|---|---|---|---|---|
+| F4sP (reference) | 0.7615 | 0.6285 | 0.7912 / 0.7883 / 0.7808 | 0.7868 | 310.4 / 285.1 / 299, 277, 316 |
+| F4sP-M (THE FINAL) | 0.7573, -0.0042 ± 0.0017 (6/21) | 0.6254, -0.0030 ± 0.0013 (8/20) | +0.0060 / -0.0004 / +0.0005 | +0.0020 (2/3) | 308.4 / 284.2 / 297, 274, 313 |
+| only MS-TCN swapped (exploratory, not in the rule) | -0.0009 ± 0.0016 (10/21) | -0.0044 ± 0.0013 (2/20) | +0.0010 / +0.0000 / +0.0012 | +0.0007 (3/3) | |
+| only pointer swapped (exploratory) | -0.0002 ± 0.0007 (10/21) | -0.0011 ± 0.0010 (7/20) | +0.0003 / -0.0014 / -0.0025 | -0.0012 (1/3) | |
+| only TCN swapped (exploratory; full-DFL pick alpha 1.0) | -0.0036 ± 0.0021 (6/21) | +0.0014 ± 0.0015 (12/20) | -0.0049 / -0.0017 / +0.0054 | -0.0004 (1/3) | |
+
+Further details:
+- Strict truth poss/90 for Metrica G1 / G2 / G3: 307 / 283 / 324.
+- F4sP-M on practice labels: +0.0044 / -0.0003 / +0.0003, mean +0.0015.
+
+VERDICT (12:31 rule): FAIL. The Metrica gain is better on 2/3 games, but its mean of +0.0020 is below the +0.005 bar.
+DFL (-0.0042) and SkillCorner (-0.0030) are inside their tolerances. F4sP stands. Nothing was built and nothing was committed.
+
+7. Public 5 minutes (user-requested curiosity; scored AFTER section 6 was recorded; it does not enter any rule)
+- Window: 17 true possessions. Run locally on the Mac only.
+- Checks: F4sP's CSV reproduces sha256 60fc793e90f1 and its decode equals match_run1's final. The MS-TCN parent re-run equals
+  the match_run1 member outputs exactly.
+
+| submission | spellF1 | macroF1 | possessions predicted |
+|---|---|---|---|
+| F4sP | 0.6211 | 0.8348 | 21 |
+| F4sP-M | 0.6600 | 0.8275 | 23 |
+| TCN o_ls05 (TTA) | 0.5600 | 0.8324 | 18 |
+| TCN o_ls05_met | 0.5474 | 0.7643 | 21 |
+| MS-TCN m5c_C192ls_skcft | 0.7243 | 0.8074 | 20 |
+| MS-TCN m5c_C192ls_skcmetft | 0.7568 | 0.8555 | 20 |
+| pointer p20M | 0.6556 | 0.7582 | 19 |
+| pointer p20M_metft | 0.6556 | 0.7588 | 19 |
+
+8. Exploratory F4sP-MF (prereg addendum "2026-11-11 12:46 CST"; scored from existing outputs only)
+F4sP-MF = F4sP with its MS-TCN replaced by the 10 Nov MET-FT MS-TCN (met_m5c), all differences paired vs F4sP.
+
+| bench | F4sP | F4sP-MF | diff ± SE (wins) | poss/90 |
+|---|---|---|---|---|
+| DFL fine4 (nested g1) | 0.7615 | 0.7596 | -0.0020 ± 0.0024 (8/21) | 310.4 -> 315.0 |
+| Metrica LOGO strict G1 | 0.7912 | 0.8082 | +0.0170 | 299 -> 295 (truth 307) |
+| Metrica LOGO strict G2 | 0.7883 | 0.7958 | +0.0075 | 277 -> 271 (truth 283) |
+| Metrica LOGO strict G3 | 0.7808 | 0.7931 | +0.0123 | 316 -> 317 (truth 324) |
+| Metrica mean, strict | 0.7868 | 0.7990 | +0.0123 (3/3) | |
+| Metrica mean, practice | 0.7487 | 0.7603 | +0.0115 (3/3) | |
+| SkillCorner fine3 | 0.6285 | NOT SCORED | missing probabilities | |
+
+- Decoder: F4sP-MF's full-DFL pick is hmm, alpha 1.0, rho 0.2, margin 0 (F4sP's is alpha 0.1).
+- Missing for SkillCorner: the class probabilities of the met_m5c full model on the 20 SkillCorner games. Only codes exist
+  (probs/skc/met_m5c).
+- Cost of the missing step: skc_both.py with NN_PFF_MODEL=met_ft/m5c_metft/full.npz, Mac exact numpy, 1 process, about 10 min,
+  plus about 1 min for the SkillCorner grid.
+
+Rule (12:31 thresholds): Metrica PASS, DFL PASS (within 0.005), SkillCorner UNKNOWN. So the verdict is pending.
+
+9. radar_pff_met: stopped before scoring, at the user's decision (pod chain stopped 19:20 UTC; files left in place).
+
+10. F4sP-MF SkillCorner and the properly built version F4sP-MF2 (coordinator instruction; plan in NOTES section 8)
+F4sP-MF (met_m5c in the MS-TCN slot):
+- The missing SkillCorner probabilities were computed; their codes equal the existing ones on 20/20 games.
+- SkillCorner 0.6177 vs 0.6285: -0.0107 ± 0.0017 (2/20); poss/90 289.0 vs 285.1 (truth 279).
+- VERDICT: FAIL. SkillCorner is worse than the 0.010 tolerance; Metrica (+0.0123, 3/3) and DFL (-0.0020) passed.
+- This verdict was written in NOTES.md before any F4sP-MF2 result was looked at.
+
+m5c_C192ls_skcft_metft (the MET-FT recipe applied to the shipped skcft):
+- Settings: 1:1 Metrica crops, the parents' own DFL + PFF + SKC sampling, 750 iterations.
+- Learning rate 5e-5: the same absolute value as MET-FT. A literal "0.1 x the skcft lr" would be 5e-6; this choice is
+  disclosed and was recorded before training.
+- 15 models were trained on the pod; their sha256 match the Mac copies.
+- Scored AFTER A FAILED PRECURSOR.
+
+Member alone vs shipped skcft:
+
+| bench | skcft | skcft_metft | diff ± SE (wins) | poss/90 (truth) |
+|---|---|---|---|---|
+| DFL fine4 | 0.7468 | 0.7399 | -0.0069 ± 0.0030 (5/21) | 330 -> 326 (412) |
+| SkillCorner-CV fine3 | 0.6060 | 0.6046 | -0.0014 ± 0.0020 (10/20) | 302 -> 302 (279) |
+| Metrica LOGO strict G1 / G2 / G3 | 0.7502 / 0.7406 / 0.7436 | 0.8164 / 0.7993 / 0.7858 | +0.0662 / +0.0587 / +0.0423; mean +0.0557 (3/3) | 326/310/360 -> 296/271/326 (307/283/324) |
+
+Final F4sP-MF2 = F4sP with the MS-TCN replaced by skcft_metft. Its decoder setting chosen on all DFL games is the same as F4sP's.
+
+| bench | F4sP | F4sP-MF2 | diff ± SE (wins) | poss/90 F4sP -> F4sP-MF2 (truth) |
+|---|---|---|---|---|
+| DFL fine4 | 0.7615 | 0.7590 | -0.0026 ± 0.0018 (9/21) | 310.4 -> 308.8 |
+| SkillCorner-CV fine3 | 0.6285 | 0.6270 | -0.0015 ± 0.0016 (9/20) | 285.1 -> 285.0 |
+| Metrica LOGO strict G1 / G2 / G3 | 0.7912 / 0.7883 / 0.7808 | 0.8120 / 0.7948 / 0.7859 | +0.0208 / +0.0065 / +0.0052; mean +0.0108 (3/3) | 299/277/316 -> 294/271/312 (307/283/324) |
+| Metrica, practice | | | mean +0.0104 (3/3) | |
+
+12:31 thresholds: Metrica PASS, DFL PASS, SkillCorner PASS. The byte-identical pipeline check was NOT done, because building a
+submission is a separate, user-approved step. STOPPED.
+Caveats:
+- F4sP-MF2 was scored after a failed precursor, under a rule changed after results were seen.
+- Metrica is no longer an independent bench (3 games, weak evidence).
+- The member alone is worse on DFL by 2.3 SE; in the ensemble DFL drops 0.0026.
