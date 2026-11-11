@@ -9,14 +9,29 @@ weights, JSON tables, pickles) must go through resolve():
 
 Outside the DFL bench resolve() returns the path unchanged. Inside it, the file's sha256 prefix
 must be mapped in the --folds JSON to [folds dir, kind], and the fold file
-<folds dir>/fold_<kind>_<game index><ext> is returned; an unmapped file raises.
+<folds dir>/fold_<kind>_<game index><ext> is returned; an unmapped file raises. The sha256 is that of
+the file's content, or of its re-joined parts when it is stored split (candidates/chunked_weights.py).
 """
 
-import hashlib
+import importlib.util
 import json
 import os
+import sys
 
 RESOLVED = []
+
+
+def _chunked_weights():
+    """candidates/chunked_weights.py (sha256 of a file, or of its re-joined parts when it is stored split), loaded
+    from this file's folder without changing sys.path."""
+    mod = sys.modules.get("chunked_weights")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(
+            "chunked_weights", os.path.join(os.path.dirname(os.path.abspath(__file__)), "chunked_weights.py"))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["chunked_weights"] = mod
+        spec.loader.exec_module(mod)
+    return mod
 
 
 def lookup(path):
@@ -27,8 +42,7 @@ def lookup(path):
     with open(os.environ["BENCH_DFL_FOLDS"]) as handle:
         text = handle.read()
     folds = json.loads(text) if text.strip() else {}
-    with open(path, "rb") as handle:
-        sha = hashlib.sha256(handle.read()).hexdigest()
+    sha = _chunked_weights().sha256(path)
     key = next((k for k in folds if sha.startswith(k)), None)
     if key is None:
         raise RuntimeError("{} (sha256 {}) has no fold mapping in --folds: refusing to score DFL "

@@ -476,7 +476,8 @@ The 19.3M pointer (`r5_ptr_ballc_p20M`) passed its member gate, narrowly on DFL:
 0.7557, +0.0084 ± 0.0039 (16/21; 2.15 SE against a 2 SE bar); SkillCorner −0.0019 ± 0.0037 (10/20);
 Metrica −0.0074. The 5.9M, 19.3M and 58.8M bench probabilities were computed with an
 experiment-only float32 GPU port of the numpy forward pass; for the 19.3M pointer its codes were
-checked identical to the shipped numpy float64 path on two sample games only (SkillCorner 2006229
+checked identical to the numpy float64 path (as v8 first shipped; the float64 torch-CPU path that now
+runs by default gives the same submission, section 8) on two sample games only (SkillCorner 2006229
 and DFL J03WR9 seed 2027, 0 frames differ). The one final, **F4sP** = F4s with the pointer replaced
 by `r5_ptr_ballc_p20M`, has the same full-DFL decoder pick as F4s (alpha 0.1, rho 0.2, margin 0, in
 all 7 nested folds). Against F4s: DFL +0.0051 ± 0.0019 (15/21), SkillCorner +0.0046 ± 0.0012 (16/20),
@@ -627,9 +628,12 @@ F4b 0.756 → F4sP 0.762.
   bench's.
 - **Smart Tagging priors are unvalidated** (section 3).
 - **A large pointer for a small gain.** F4sP's pointer has 19.3M parameters (77.1 MB of weights,
-  93 MB for all four members) and its numpy forward pass dominates the run time
-  (54 minutes on one thread of a heavily shared Apple M5 Max, section 8; F4b took about 4-7 minutes). Its bench probabilities came from a float32
-  GPU port, checked against the shipped numpy path on two sample games and on the live = offline
+  93 MB for all four members). Its forward pass now runs in PyTorch on the CPU in float64
+  (83 s for the match on one thread of a moderately loaded Apple M5 Max; the numpy forward pass it replaces took about 24 minutes alone and
+  made the whole run 54 minutes on a heavily shared Apple M5 Max; F4b took about 4-7 minutes). The
+  submission therefore needs torch (CPU wheel) installed to run in minutes; without it the numpy
+  path gives the same file, slowly (section 8). Its bench probabilities came from a float32
+  GPU port, checked against the numpy path on two sample games and on the live = offline
   games of `candidates/final_f4sp/README.md`, not on every bench game.
 - **Statistical resolution.** With 7 games we can only resolve differences of about 0.005-0.016,
   and per-frame statistics overstate the evidence roughly a hundredfold, because a dead-ball state
@@ -647,41 +651,67 @@ F4b 0.756 → F4sP 0.762.
 
 ```bash
 # 1. data: unpack the bundle into data/ (DATA.md)
-# 2. environment (Python 3.14.6)
+# 2. environment (Python 3.14.6; installs the CPU-only torch wheel from the PyTorch index on Linux)
 pip install -r requirements-submission.txt
-# 3. the submission file (byte-identical, single thread, about an hour)
+# 3. the submission file (byte-identical, single thread, a few minutes)
 python make_submission.py            # -> evaluation/results/camp_nou_limits.csv
 python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 ```
 
 Expected sha256:
 `60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57` (326 possessions, dead share
-0.457). We obtained exactly this file on:
-- macOS arm64 (numpy on Apple Accelerate): `make_submission.py` (which always pins one thread),
-  and `candidates/final_f4sp/match_run.py`, the same pipeline without the pin, run twice and with
-  `OMP_NUM_THREADS` = 2 and 8;
-- Linux arm64 in a container (OpenBLAS);
-- Linux x86-64 in a container under Rosetta emulation (OpenBLAS);
-- a fresh copy of the repository in a Linux arm64 container with only
-  `requirements-submission.txt` installed.
+0.457).
+
+The pointer's network forward pass has two backends that give this same file: PyTorch on the CPU in
+float64 (`candidates/nn_pointer/ptr_torch.py`, the default when torch is installed; it runs in a
+worker process, because torch and LightGBM in one process hang or crash on macOS) and numpy in
+float64 (`ptr_np.py`, the reference, used when torch is missing or with `MTAH_PTR_BACKEND=numpy`).
+The torch port does the numpy code's operations in the same order (convolutions as matrix products,
+oneDNN disabled, deterministic algorithms on); on the match its probabilities differ from numpy's by
+at most 2.4e-15 and are identical after the float32 rounding that precedes the decoder.
+
+We obtained exactly this file
+- with the torch backend (PyTorch 2.15.0):
+  - macOS arm64 (Apple Accelerate): `make_submission.py` (which always pins one thread), and
+    `candidates/final_f4sp/match_run.py`, the same pipeline without the pin, with 1, 2 and 8
+    numpy and torch threads;
+  - Linux arm64 in a container (OpenBLAS, torch 2.15.0+cpu);
+  - Linux x86-64 in a container under Rosetta emulation (torch 2.15.0+cpu);
+  - a fresh clone of the repository in a Linux arm64 container with only
+    `requirements-submission.txt` installed;
+- with the numpy backend, when v8 was built: macOS arm64 (`make_submission.py`; `match_run.py`
+  unpinned twice and with `OMP_NUM_THREADS` = 2 and 8), Linux arm64 (working tree and a fresh
+  copy) and Linux x86-64 under Rosetta emulation, all in containers; and again on macOS with
+  `MTAH_PTR_BACKEND=numpy` after the torch backend was added (30 minutes).
 
 The containers were `python:3.14.6-slim`, which also needs the system OpenMP runtime for LightGBM
-(`apt-get install libgomp1`). Perturbing the member probabilities fed to the decoder by up to a
-relative 1e-6 (3 random draws), or rounding them to 1e-6, changes no output frame. Native x86-64
-was not tested.
+(`apt-get install libgomp1`). On Linux, `requirements-submission.txt` takes torch from
+`https://download.pytorch.org/whl/cpu` (its `--extra-index-url` line), which gives the CPU-only
+2.15.0+cpu wheel instead of PyPI's CUDA build. Perturbing the member probabilities fed to the decoder
+by up to a relative 1e-6 (3 random draws), or rounding them to 1e-6, changes no output frame (checked
+with both backends). Native x86-64 hardware was not tested.
 
-Run time: `make_submission.py` took 54 minutes (3230 s; 2757 s of CPU) on one thread of an Apple
-M5 Max that other jobs kept heavily loaded (load average about 35 on 18 cores), and 64-66 minutes
-in the Linux arm64 containers on the same machine; an idle machine should be faster, which was not
-measured. The 19.3M-parameter pointer is over 90% of it (F4b, with the 0.8M pointer, took about 4-7
-minutes).
+Run time with torch: `make_submission.py` took 3 min 24 s, 5 min 28 s and 9 min 54 s on one thread
+of the same Apple M5 Max, which other jobs shared throughout (load averages about 5, 8 and 9; the
+slowest run overlapped other jobs' heavy numerical work); the pointer's forward pass alone took
+83 s in a comparison run. The Linux containers (6 virtual CPUs on that Mac, also shared) took
+15-16 minutes on arm64 and 24 minutes on x86-64 under Rosetta emulation. With numpy,
+`make_submission.py` took 54 minutes (3230 s; 2757 s of CPU) on one thread of an Apple M5 Max that
+other jobs kept heavily loaded (load average about 35 on 18 cores), and 64-66 minutes in the Linux
+arm64 containers on the same machine; the pointer was over 90% of it.
+
+Weights files over GitHub's 100 MB limit can be stored as numbered parts with
+`python candidates/chunked_weights.py split <file.npz>` (writes `<file.npz>.part000`, `.part001`,
+... and `<file.npz>.sha256`); the pointer and MS-TCN loaders, and the benches' fold-model lookup,
+read the parts (joined in memory and checked against the sha256) when the single file is absent.
+No shipped file needs this yet.
 
 The submission loads committed model files only (about 93 MB for the four members, 77 MB of it the
 pointer), needs no network, and never touches the ground truth. Rebuilding the models from the open
 data, and every bench number in this document, is described in `candidates/README.md` and each
 candidate's README (`candidates/final_f4sp/README.md` lists F4sP's parts,
 `candidates/final_f4b/README.md` F4b's). The SkillCorner A-League data for the MS-TCN's fine-tune
-comes from github.com/SkillCorner/opendata. That needs `requirements-train.txt` (adds
-torch), the IDSSE download script (`candidates/learned_dfl_evidence/fetch_idsse.py`), the PFF
+comes from github.com/SkillCorner/opendata. That needs `requirements-train.txt` (the
+submission's pins, torch included; training ran on GPUs), the IDSSE download script (`candidates/learned_dfl_evidence/fetch_idsse.py`), the PFF
 World Cup release, and the work directory `$MTAH_WORK`. FOOTPASS is not needed to rebuild
 anything that ships.

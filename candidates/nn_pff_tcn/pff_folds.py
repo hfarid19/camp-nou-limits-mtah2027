@@ -11,24 +11,24 @@ resolve(path, kind=None, dfl=True):
   the sidecar <fold file>.games.json) do not contain the scored game NN_PFF_GAME. Every lookup is
   appended to NN_PFF_LOG ("<game> <fold file>"), which the runner checks after each game.
 - Otherwise the path is returned unchanged (the match, Metrica, the PFF holdout: full models).
+The sha256 is that of the file's content, or of its re-joined parts when it is stored split
+(candidates/chunked_weights.py), so the lookup is the same for both forms.
 """
 
-import hashlib
 import json
 import os
 import sys
 
-import numpy as np
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import dfl_folds  # noqa: E402
+import chunked_weights  # noqa: E402  (a weights file may be stored split into parts; see chunked_weights.py)
+import dfl_folds        # noqa: E402
 
 
 def train_games(fold):
     side = fold + ".games.json"
     if os.path.isfile(side):
         return set(json.load(open(side)))
-    return {str(g) for g in np.load(fold)["train_games"]}
+    return {str(g) for g in chunked_weights.open_weights(fold)["train_games"]}
 
 
 def resolve(path, kind=None, dfl=True):
@@ -38,8 +38,7 @@ def resolve(path, kind=None, dfl=True):
         return out
     if out != path or os.environ.get("BENCH_DFL_FOLD") is not None:
         raise RuntimeError("both the DFL and the PFF fold lookups are active")
-    with open(path, "rb") as h:
-        sha = hashlib.sha256(h.read()).hexdigest()
+    sha = chunked_weights.sha256(path)
     folds = json.load(open(os.environ["NN_PFF_FOLDS"]))
     key = next((s for s in folds if sha.startswith(s)), None)
     if key is None:

@@ -27,6 +27,7 @@ import possession_pipeline as pp  # noqa: E402
 import features as fe             # noqa: E402
 import tcn_np                     # noqa: E402
 import pff_folds                  # noqa: E402
+import chunked_weights            # noqa: E402  (candidates/chunked_weights.py)
 
 warnings.filterwarnings("ignore")
 H, A, D = 0, 1, 2
@@ -81,7 +82,7 @@ def tcn_outputs(players, slot_team, ball, sign_half1, blocks, pitch, fps):
     key = _key(players, ball, blocks, path)
     if key in _CACHE:
         return _CACHE[key]
-    model = tcn_np.Model(path)
+    model = tcn_np.Model(chunked_weights.source(path))      # the file, or its re-joined parts if stored split
     sign = fe.frame_sign(len(ball), sign_half1, blocks)
     F, names, kinds = fe.compute(players, slot_team, ball, sign, pitch, fps)
     assert names == model.names, "feature list differs from the trained model"

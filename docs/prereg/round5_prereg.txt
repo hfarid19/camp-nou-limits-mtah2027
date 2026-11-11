@@ -193,3 +193,26 @@ The user asked to see the ensemble with the fine-tuned 19.3M pointer anyway, and
   X3 = F4sP with the pointer -> r5_ptr_ballc_p20M_skcft (finals.py nested g1; SKC cross-validated).
 This is NOT a pre-registered pick (the member gate failed: DFL -0.0116 ± 0.0044). The standing rule is reported for it; the public
 window score is a curiosity number and, per RULES.md, not a basis for choosing. Any pick of X3 would be a disclosed user override.
+
+ADDENDUM 2026-11-10 22:30 CST (clock checked) — size experiments after the 197.5M ASFormer result (user: "lets do 1 2 3")
+Context: one PFF fold of a 197.5M ASFormer (b6, d 640) gave val_ce 0.1415 and fine3 0.7909 on its 12 games, above every smaller
+ASFormer (previous best 3.6M: 0.7840 on the same games), i.e. a second rise after the fall to 32M. Already running, one PFF fold
+each, as curiosity: b6 folds pff1-3; MS-TCN m5c_C528ls / C912ls / C1680ls (19.7M / 58.5M / ~200M).
+New, one PFF fold (pff0) each, PFF screen only:
+  1. Pointer r5_ptr_ballc_p180M (178,146,856 params; config fixed in the 14:55 addendum). NOTE: this DEVIATES from the 14:55
+     stopping rule (p60M did not beat p20M, so p180M was not to be trained); it is run because of the ASFormer result and is
+     disclosed as such.
+  2. TCN (o_ls05 recipe) widened to about 2M, 20M and 200M parameters, nothing else changed.
+  3. Ball radar network widened (about 10x and 100x parameters), nothing else changed; its LightGBM stage as before.
+Reading: fold-0 PFF fine3 on the 12 held-out games, paired vs the shipped size of the same family. No model from this addendum
+enters a submission unless it then gets all four PFF folds, DFL LOGO fold models and the standing gates (member gate vs the
+shipped member: DFL >= +0.005 and >= 2 SE, SKC not worse > 1 SE, Metrica not worse > 0.010; then one final vs F4sP with the
+gain-sum rule), plus byte-identity checks of a new pipeline. Cut-off for any submission change: 12:00 CST 14 Nov.
+
+ADDENDUM 2026-11-10 22:45 CST — 500M rung (user: "after all that train 500M params of each model"), written before any 22:30 result
+After the 22:30 jobs are trained and scored: one PFF fold (pff0) at about 500M parameters for each family — pointer, TCN,
+MS-TCN, ASFormer, and the ball radar if its widening is valid — widths only, nothing else changed, exact configs and counts
+fixed in the notes before training. Run whatever the 200M results are (not conditional on them). Same reading and same
+conditions as the 22:30 addendum: screen only (PFF fold 0, SkillCorner, Metrica with the fold-0 model; no DFL without LOGO
+folds); no submission change without four folds, DFL LOGO models, the gates and a verified pipeline. User also asked for a
+public-5-minute score of every new model: curiosity only, disclosed, not a basis for any choice (RULES.md).

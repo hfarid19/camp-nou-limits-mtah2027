@@ -6,7 +6,7 @@
 #    then bench.py --dfl2 (leave-one-DFL-game-out fold models) -> probs/nn_pff_dfl/<name>.
 set -e
 NAME=$1; KIND=$2
-R=/path/to/more-than-a-hack-2027
+R=${0:A:h:h:h}  # repo root
 P=$MTAH_WORK/venv/bin/python
 D=$MTAH_WORK/arch/nn_pff/$NAME
 [ $KIND = mstcn ] && PIPE=$R/candidates/nn_pff/pipeline.py || PIPE=$R/candidates/nn_pff_tcn/pipeline.py

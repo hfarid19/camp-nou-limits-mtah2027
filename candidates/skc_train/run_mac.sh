@@ -5,7 +5,7 @@
 #   run_mac.sh <variant dir> ptr|mstcn <name> dfl <i,j,..>   DFL LOGO bench on the listed DFL games (indices)
 #   run_mac.sh <variant dir> ptr|mstcn <name> met            Metrica dev (full model)
 D=$1; KIND=$2; NAME=$3; WHAT=$4
-export MTAH_WORK=/path/to/mtah-work OMP_NUM_THREADS=2
+: ${MTAH_WORK:?set MTAH_WORK}; export MTAH_WORK OMP_NUM_THREADS=2
 R=${0:A:h:h:h}; P=$MTAH_WORK/venv/bin/python
 case $KIND in mstcn) PIPE=$R/candidates/nn_pff/pipeline_cfg.py;; ptr) PIPE=$R/candidates/nn_pointer/pipeline_cfg.py;; esac
 cd $R

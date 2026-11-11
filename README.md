@@ -17,8 +17,10 @@
 > test-time averaging and label-free per-game re-normalisation from [`adapt`](candidates/adapt/README.md)),
 > a wide MS-TCN fine-tuned with the SkillCorner games added ([`nn_pff`](candidates/nn_pff/README.md)),
 > a ball radar ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer
-> network with 19.3M parameters ([`nn_pointer`](candidates/nn_pointer)). Expect the run to take
-> about an hour on one thread (54 minutes on a heavily shared Apple M5 Max). Their outputs are combined by expected-spellF1 decoding
+> network with 19.3M parameters ([`nn_pointer`](candidates/nn_pointer)). The pointer's forward pass runs in
+> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel), and the run takes
+> 3-10 minutes on one thread of a shared Apple M5 Max; without torch it falls back to numpy and gives the
+> same file in about an hour (54 minutes on a heavily shared Apple M5 Max). Their outputs are combined by expected-spellF1 decoding
 > ([`mbr_decode`](candidates/mbr_decode/README.md)) around the members' vote under the challenge's
 > controlled-possession rule, followed by dead ball before each kick-off. It uses no labels from the
 > provided game. It replaced [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b", v7);

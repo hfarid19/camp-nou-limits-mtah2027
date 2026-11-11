@@ -11,7 +11,7 @@ import time
 
 import numpy as np
 
-REPO = "/path/to/more-than-a-hack-2027"
+REPO = __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.dirname(__file__), "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO, "candidates"))
 sys.path.insert(0, os.path.join(REPO, "candidates", "temporal_tcn"))
 os.chdir(REPO)

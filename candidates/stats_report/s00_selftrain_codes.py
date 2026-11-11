@@ -11,7 +11,7 @@ import sys
 
 import numpy as np
 
-WORK = "/path/to/mtah-work"
+WORK = __import__("os").environ["MTAH_WORK"]
 OFF = os.path.join(WORK, "arch/selftrain_ctrl/offline")
 OUT = os.path.join(WORK, "stats/selftrain_codes")
 sys.path.insert(0, OFF)

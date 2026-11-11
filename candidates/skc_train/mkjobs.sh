@@ -1,7 +1,7 @@
 #!/bin/zsh
 # append the Mac scoring units of one variant to the lanes.py jobs file:  mkjobs.sh <jobs file> <variant> ptr|mstcn [skc|rest]
 J=$1; N=$2; K=$3; PART=${4:-all}
-W=/path/to/mtah-work; D=$W/arch/r5_arch/skc_train/$N
+W=${MTAH_WORK:?set MTAH_WORK}; D=$W/arch/r5_arch/skc_train/$N
 S=${0:A:h}/run_mac.sh
 if [ $PART = all ] || [ $PART = skc ]; then
   for k in 0 1 2 3; do echo "REQ $D/fold_skc_$k.npz :: $S $D $K $N skccv $k" >> $J; done

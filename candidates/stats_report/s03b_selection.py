@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-WORK = os.environ.get("MTAH_WORK", "/path/to/mtah-work")
+WORK = os.environ["MTAH_WORK"]
 STATS = os.path.join(WORK, "stats")
 
 OFF = os.path.join(WORK, "arch/selftrain_ctrl/offline")

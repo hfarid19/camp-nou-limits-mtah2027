@@ -22,24 +22,33 @@ sequence (the members' hard vote under v6's rule of 1 s smoothing + 1.25 s contr
 fold, the vote under 11 other smoothing/fold rules, or a single member) with the highest expected
 spellF1 against samples from an HMM on the members' mean probabilities (fixed seed). Last, every
 frame before each half's kick-off is dead. No ground truth, no training data and no network access
-are needed: the members load their committed model files (numpy + LightGBM only).
+are needed: the members load their committed model files (numpy + LightGBM, and PyTorch on the
+CPU for the pointer's forward pass).
 
-Numerical libraries are pinned to one thread before numpy is imported. That alone does not make
-floating-point results machine-independent; what we tested is that the file is byte-identical
-(sha256 60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) on macOS arm64
-(Accelerate), Linux arm64 (OpenBLAS; also from a fresh copy of the repository) and Linux x86-64
-under Rosetta emulation (OpenBLAS), with the pinned requirements-submission.txt and Python 3.14.6
-(the Linux containers also need the system OpenMP runtime, libgomp1, for LightGBM). This script
-always runs single-threaded; the unpinned, 2- and 8-thread runs that gave the same file on macOS
-went through candidates/final_f4sp/match_run.py (the same pipeline without the thread pin). Native
-x86-64 hardware was not tested. Expect a long run: about 54 minutes on one thread of a heavily
-shared Apple M5 Max, over 90% of it in the 19.3M-parameter pointer (F4b took 4-7 minutes). See
+The pointer's forward pass runs in PyTorch (CPU, float64, candidates/nn_pointer/ptr_torch.py: the
+numpy forward's maths op for op, in a worker process that never loads LightGBM) when torch is
+installed, else in numpy (ptr_np.py, the reference). MTAH_PTR_BACKEND=numpy forces the numpy path;
+both give the same file. Which one ran is printed on stderr.
+
+Numerical libraries (and the torch worker) are pinned to one thread before numpy is imported. That
+alone does not make floating-point results machine-independent; what we tested is that the file is
+byte-identical (sha256 60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) on macOS
+arm64 (Accelerate), Linux arm64 (OpenBLAS; also from a fresh clone of the repository) and Linux
+x86-64 under Rosetta emulation, with the pinned requirements-submission.txt and Python 3.14.6 (the
+Linux containers also need the system OpenMP runtime, libgomp1, for LightGBM), with the torch
+backend and, when v8 was first built, with the numpy backend. This script always runs
+single-threaded; the 2- and 8-thread runs that gave the same file on macOS went through
+candidates/final_f4sp/match_run.py (the same pipeline without the thread pin). Native x86-64
+hardware was not tested. Run time with torch: 3-10 minutes on one thread of a shared Apple M5 Max
+(depending on what else ran), 15 minutes in a Linux arm64 container; with numpy about 54 minutes on
+one thread of a heavily shared Apple M5 Max, over 90% of it in the 19.3M-parameter pointer. See
 TECHNICAL.md, "Reproduction".
 """
 
 import os
 
-for _var in ("OMP_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+for _var in ("OMP_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+             "MTAH_TORCH_THREADS"):
     os.environ[_var] = "1"
 
 import argparse          # noqa: E402

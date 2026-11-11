@@ -4,7 +4,7 @@
 """
 import os, sys, json, time, hashlib
 os.environ.setdefault("OMP_NUM_THREADS", "2")
-REPO = "/path/to/more-than-a-hack-2027"
+REPO = __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.dirname(__file__), "..", "..", "..", ".."))
 CAND = REPO + "/candidates/semimarkov_lattice"
 WORK = os.environ.get("MTAH_WORK") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)).split(os.sep + "candidates")[0], "external", "work")

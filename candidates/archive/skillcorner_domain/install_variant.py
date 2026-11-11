@@ -3,8 +3,8 @@ model_meta.json (sha256 + per-model provenance) and write folds_<VARIANT>.json."
 import hashlib, json, os, shutil, sys
 WORK = os.environ.get("MTAH_WORK") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)).split(os.sep + "candidates")[0], "external", "work")
-CAND = "/path/to/more-than-a-hack-2027/candidates/skillcorner_domain"
-LDE = "/path/to/more-than-a-hack-2027/candidates/learned_dfl_evidence"
+CAND = __import__("os").path.dirname(__import__("os").path.abspath(__file__))
+LDE = __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.dirname(__file__), "..", "..", "learned_dfl_evidence"))
 A = WORK + "/arch/skillcorner_domain"
 VER = json.load(open(WORK + "/folds_verified.json"))
 sha = lambda p: hashlib.sha256(open(p, "rb").read()).hexdigest()

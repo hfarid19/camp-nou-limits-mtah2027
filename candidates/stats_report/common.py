@@ -7,7 +7,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 CAND = os.path.dirname(HERE)
 REPO = os.path.dirname(CAND)
-WORK = os.environ.get("MTAH_WORK", "/path/to/mtah-work")
+WORK = os.environ["MTAH_WORK"]
 os.environ.setdefault("MTAH_WORK", WORK)
 STATS = os.path.join(WORK, "stats")
 PROBS = os.path.join(WORK, "probs")

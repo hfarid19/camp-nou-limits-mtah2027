@@ -4,7 +4,7 @@
 # waits for fold_pff_<k>.npz (k = 0..3) and runs run_pff.py on fold k's 12 games.
 set -e
 D=$1; PIPE=$2; NAME=$3
-R=/path/to/more-than-a-hack-2027
+R=${0:A:h:h:h}  # repo root
 P=$MTAH_WORK/venv/bin/python
 for k in 0 1 2 3; do
   while [ ! -f $D/fold_pff_$k.npz ]; do sleep 30; done
