@@ -377,3 +377,12 @@ pod queues were paused for submission work and the Mac rebooted): E's extra seed
 seeds of each size share one device, seed 0 is ALSO retrained on MPS for TCN 20M, MS-TCN 2.6M and MS-TCN 20M (their existing
 seed-0 models are CUDA); TCN 0.2M's seed-0 model o_ls05 is already MPS. Device is recorded per model; MPS-vs-CUDA differences are
 device noise and are reported, not hidden. A's MPS runs are compared with both the CUDA seed-0 reference and the MPS seed-0 rerun.
+ADDITION 2026-11-11 16:22 CST to the 10:55 repeated-data addendum (coordinator / user; written before any of these runs and
+before any MPS-trained model was scored). The A result "half the steps helps SkillCorner" (TCN 20M x0.5 +0.0165 ± 0.0032,
+MS-TCN 2.6M x0.5 +0.0132 ± 0.0036, both CUDA-trained, one seed, vs the CUDA seed-0 1x models) is to be read against seed noise
+within ONE device. Added runs (Mac GPU, MPS, fold pff0, recipe unchanged except the step count and the seed): MS-TCN 2.6M x0.5
+(epochs 20) and TCN 20M x0.5 (iters 2000; OneCycle total_steps = iters, same shape) with seeds 0, 1, 2. DECISIVE COMPARISON
+(for this question only; still a screen, no submission consequence): per bench (PFF fold 0, SkillCorner, Metrica dev), the mean
+over the 3 MPS seeds of x0.5 minus the mean over the 3 MPS seeds of x1 (E's MPS triples), with the seed spread
+SE = sqrt(SD_x05^2/3 + SD_x1^2/3), and the 9 cross-seed paired game-level diffs listed. "Half the steps helps SkillCorner" is
+read as supported only if that difference is > 0 by more than 2 seed-SE. Scoring = exact numpy CPU path on the Mac.

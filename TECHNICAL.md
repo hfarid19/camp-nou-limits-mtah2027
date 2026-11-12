@@ -239,7 +239,21 @@ One finding of Kaplan et al. did not hold for us. They found that scores on a di
 
 The practical conclusion is that more labelled games would help this task more than more parameters. The 19.3M pointer was the largest model that earned its place in the submission. The 11M radar adds a second lesson. It was clearly better alone, and in the ensemble it added nothing that the other three models did not already cover.
 
-Following these two studies, we started three more experiments on the 0.2M and 20M TCN and the 2.6M and 20M MS-TCN: training with fewer and more passes over the data, training on a quarter and a half of the games, and training each recipe with three random seeds. They were unfinished when this document was written, so we report no results from them. Each size in the table above was trained once, which means differences of about 0.005 between sizes may be run-to-run noise.
+Following these two studies, we ran two more experiments on the 2.6M MS-TCN, the size we ship. Both used the first World Cup fold.
+
+The first measured run-to-run noise. We trained the same recipe with three random seeds:
+
+| Benchmark | Seed 0 / 1 / 2 | Spread between seeds (SD) | Standard error over games that we quote |
+|---|---|---|---|
+| World Cup fold | 0.7975 / 0.8022 / 0.7968 | 0.0029 | about 0.003 to 0.005 |
+| SkillCorner | 0.5521 / 0.5632 / 0.5650 | 0.0070 | about 0.0035 |
+| Metrica | 0.6963 / 0.7058 / 0.7093 | 0.0068 | 2 games |
+
+On SkillCorner, retraining with another seed moved the score by +0.011 to +0.013, which our game-level standard error would have called a clear gain. Therefore, a difference between two single training runs that is below about 0.015 on SkillCorner should be read as noise. Each size in the table above was trained once, so this applies to most of the size differences in this section. It applies less to comparisons between ensembles that share three of their four models.
+
+The second experiment trained for half the usual number of passes, which the study of repeated data suggests should reduce memorisation. With one run each, half the passes looked +0.0132 ± 0.0036 better on SkillCorner. With three seeds each it was +0.0054 ± 0.0045 on SkillCorner, +0.0090 ± 0.0045 on Metrica and −0.0041 ± 0.0025 on the World Cup fold. The direction fits less memorisation and better transfer, and it is too small to establish with three seeds, so we kept the standard recipe. For the 20M TCN, which we do not ship, the same test was clearer: half the passes gave +0.0066 ± 0.0017 on SkillCorner over three seeds each, with −0.0042 ± 0.0031 on the World Cup fold. That still left it level with the shipped 0.2M TCN on SkillCorner, and the 0.2M TCN itself got worse with shorter training. A memorisation check supports the direction: the gap between training loss and held-out loss grows with every extra pass and with model size up to about 20 to 200 million parameters, while held-out loss barely moves.
+
+The data-size experiment (training on a quarter and a half of the games) was not run.
 
 ### 3h. What We Tried and Dropped
 
