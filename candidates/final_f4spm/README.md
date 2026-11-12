@@ -151,7 +151,7 @@ noted, every run used the torch backend for the pointer (the default).
 - Linux arm64 (OpenBLAS; torch 2.15.0+cpu from the PyTorch CPU index) in a `python:3.14.6-slim`
     container with `libgomp1` and only `requirements-submission.txt` installed, on the working tree
     (`make_submission.py --candidate final_f4spm`);
-  - a fresh copy in the same kind of container: a local `git clone` of commit 24e3bc4 plus only
+  - a fresh copy in the same kind of container: a local `git clone` of the commit before v9 plus only
     this change's files (`make_submission.py`, `final_f4spm/`, the new member file and weights);
   - Linux x86-64 under Rosetta emulation in the same kind of container (torch BLAS MKL, CPU
     capability AVX2). Native x86-64 hardware was not tested.

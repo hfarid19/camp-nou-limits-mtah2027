@@ -174,7 +174,7 @@ below repeats the ones that matter with the torch backend.
     (`OMP_NUM_THREADS` = `VECLIB_MAXIMUM_THREADS` = `MTAH_TORCH_THREADS` = k);
   - Linux arm64 in a container on the working tree (torch 2.15.0+cpu from the PyTorch CPU index,
     BLAS OpenBLAS); Linux x86-64 under Rosetta emulation in a container (torch 2.15.0+cpu);
-  - a fresh clone of the repository (commit 5dfbbd3 plus these changes) in a Linux arm64 container
+  - a fresh clone of the repository (the v8 commit plus these changes) in a Linux arm64 container
     with only `requirements-submission.txt` (and libgomp1) installed.
 
   Member level, the shipped pointer run with both backends on identical inputs
