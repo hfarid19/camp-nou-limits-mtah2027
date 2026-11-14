@@ -1,4 +1,4 @@
-# final_f4spm: submission candidate v9 ("F4sP-MF2"), not the submission
+# final_f4spm: v9 ("F4sP-MF2"), the submission from 11 to 13 Nov 2026
 
 `pipeline.py` is `../final_f4sp` (F4sP, submission v8) with one member slot swapped: the MS-TCN
 `m5c_C192ls_skcft` is replaced by `m5c_C192ls_skcft_metft`, the same network fine-tuned once more
@@ -8,7 +8,9 @@ dead ball before each half's kick-off. Like v8 it is deterministic (fixed sampli
 member probabilities to float32 before decoding, and runs on numpy and LightGBM plus PyTorch on the
 CPU for the pointer's forward pass.
 
-**Status.** This is the submission since 11 Nov 2026: `make_submission.py` runs it by default
+**Status.** Superseded on 13 Nov 2026 by v11 (`../final_v11`), which `make_submission.py` now runs by default; v9 needs
+`--candidate final_f4spm --out <path>.csv`. The rest of this file is as written while v9 was the submission.
+From 11 Nov 2026 it was the submission: `make_submission.py` ran it by default
 (`DEFAULT_CANDIDATE = "final_f4spm"`) and writes `evaluation/results/camp_nou_limits.csv`. v8
 (`candidates/final_f4sp`) stays available with `--candidate final_f4sp --out <path>.csv`. Other ways to run v9:
 

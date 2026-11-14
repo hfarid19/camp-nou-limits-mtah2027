@@ -1,0 +1,62 @@
+{
+ "lgb_version": "4.7.0",
+ "sha256": "877902c48d56683a989858ababb7f647f0c61b5beabf61862b293ce6634aca1b",
+ "params": {
+  "n_estimators": 200,
+  "max_depth": 4,
+  "learning_rate": 0.05,
+  "objective": "multiclass",
+  "random_state": 0,
+  "deterministic": true,
+  "force_row_wise": true,
+  "n_jobs": 2,
+  "verbose": -1
+ },
+ "rows": 339912,
+ "class_counts": [
+  121978,
+  121978,
+  95956
+ ],
+ "offsets_frames": [
+  -50,
+  -25,
+  -10,
+  0,
+  10,
+  25,
+  50
+ ],
+ "fps": 25,
+ "features": "member-major (TCN, MS-TCN, radar, pointer), then offset, then class (H, A, D); 84",
+ "member_dirs_metrica": [
+  "adapt32/o_ls05_ref__tta4_all_a50",
+  "met_ft/parent_m5c_skcft",
+  "met_ft/parent_radar_pff",
+  "met_ft/parent_p20M_pod"
+ ],
+ "games": [
+  "Sample_Game_1",
+  "Sample_Game_2",
+  "Sample_Game_3"
+ ],
+ "bench_seeds": [
+  2027,
+  2028
+ ],
+ "gain_share_member": [
+  0.034,
+  0.026,
+  0.347,
+  0.593
+ ],
+ "gain_share_offset": [
+  0.027,
+  0.009,
+  0.01,
+  0.608,
+  0.218,
+  0.072,
+  0.058
+ ]
+}

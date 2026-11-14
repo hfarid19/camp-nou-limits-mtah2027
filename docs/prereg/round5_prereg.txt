@@ -386,3 +386,706 @@ within ONE device. Added runs (Mac GPU, MPS, fold pff0, recipe unchanged except 
 over the 3 MPS seeds of x0.5 minus the mean over the 3 MPS seeds of x1 (E's MPS triples), with the seed spread
 SE = sqrt(SD_x05^2/3 + SD_x1^2/3), and the 9 cross-seed paired game-level diffs listed. "Half the steps helps SkillCorner" is
 read as supported only if that difference is > 0 by more than 2 seed-SE. Scoring = exact numpy CPU path on the Mac.
+
+ADDENDUM 2026-11-12 18:17 CST (wall clock; written before any run): context-window experiment "ctxwin" (EXPLORATORY, write-up
+only; NO submission consequence; work folder arch/r5_arch/ctxwin). Question: what a ~10 s or ~30 s receptive field costs
+compared with the shipped windows (TCN 0.22M o_ls05: 12 blocks, kernel 3, dilations 1,2,...,128,1,2,4,8 -> 541 steps =
+108.2 s at 5 steps/s; MS-TCN 2.6M m5c_C192ls: 3 stages x 10 layers on the class path, dilations 2^i -> 6139 steps = 1227.8 s
+whole stack; one stage 2047 steps = 409.4 s). Change = ONLY the dilation pattern (same blocks/layers, width, kernel ->
+identical parameter counts); recipes otherwise unchanged (o_ls05: ls 0.05, 4000 it x 16 x 512; m5c_C192ls: C 192, Cr 96,
+cosine 0, clip 0, ls 0.05, 40 ep x 1200 x 1024; training crops unchanged), fold pff0, data ds_pff2, Mac GPU (--device mps),
+seeds 0, 1, 2:
+  TCN ~10 s: dils 1,2,4,1,2,4,1,2,4,1,2,1 -> 51 steps = 10.2 s.  TCN ~30 s: dils 1,2,4,8,16,32,1,2,4,1,2,2 -> 151 steps = 30.2 s.
+  MS-TCN ~10 s: every stage dilations all 1 -> stage 21 steps (4.2 s), class path (backbone + 2 refinements) 61 steps =
+    12.2 s (the minimum possible with 30 kernel-3 layers in series), boundary path 41 steps = 8.2 s.
+  MS-TCN ~30 s: every stage 1,2,4,8,1,2,4,1,1,1 -> stage 51 steps (10.2 s), class path 151 steps = 30.2 s, boundary 101 = 20.2 s.
+The MS-TCN dilation option is an opt-in in COPIES under ctxwin/code (trainer + inference wrapper; repo files untouched);
+numpy-vs-torch outputs checked on one game per model before scoring. Scoring = exact numpy CPU path (size2 run1.sh):
+PFF fold-0 12 games, SkillCorner 20 games, Metrica dev; no DFL. Reference = the existing 1x MPS seed triples (TCN: o_ls05,
+rd_tcn02_s1_mps, rd_tcn02_s2_mps; MS-TCN: rd_ms26_s{0,1,2}_mps). Reported per family x window and bench: 3-seed means,
+SD, difference of 3-seed means vs the reference ± seed SE = sqrt(SD_a^2/3 + SD_ref^2/3); plus dead-ball per-frame F1 (D
+class), alive/dead F1, team accuracy on both-alive frames, and predicted vs true possessions per 90. Hypothesis (stated
+before results): a short window mostly hurts dead-ball detection (ball-missing gaps have median 10.7 s). No decision rule;
+descriptive only.
+
+ADDITION 2026-11-12 18:24 CST to the 18:17 ctxwin addendum (user, via coordinator; written before any 2 s run): a ~2 s window
+for both families, 3 seeds each on MPS, same scoring and breakdown. 11 steps is below what kernel-3 dilations can reach with
+12 (TCN) or 30 (MS-TCN class path) kernel-3 layers in series, so OPTION (a) is used: all blocks / layers are kept, but only 5
+along the path keep kernel 3 (dilation 1) and the others become kernel 1 (pointwise); widths unchanged; parameter count
+therefore DROPS (reported exactly):
+  TCN ~2 s: blocks 0,2,4,6,8 kernel 3 dilation 1; blocks 1,3,5,7,9,10,11 kernel 1 -> RF 11 steps = 2.2 s;
+    parameters 215,812 - 7 x 2 x 64 x 64 = 158,468.
+  MS-TCN ~2 s: backbone layers 0,2,4,6,8 kernel 3 dilation 1, layers 1,3,5,7,9 kernel 1; every refinement stage (2 class,
+    1 boundary) all 10 layers kernel 1 -> class path RF 11 steps = 2.2 s, boundary path RF 11 = 2.2 s (whole stack 2.2 s);
+    parameters 2,630,317 - 5 x 2 x 192 x 192 - 30 x 2 x 96 x 96 = 1,708,717.
+Trainer copies under ctxwin/code get an opt-in per-layer kernel list (TCN cfg "ks"; MS-TCN cfg "ks" / "ks_r"); the numpy
+inference takes the kernel from the weight shapes (repo tcn_np code already handles kernel 1). Same numpy-vs-torch check before
+scoring. Order of work: 10 s, then 2 s, then 30 s. Descriptive only; no submission consequence.
+REPLACEMENT 2026-11-12 18:26 CST of the 18:24 ADDITION (user, via coordinator): the ~2 s window is CANCELLED and replaced by a ~5 s
+window before any 2 s model was trained (none was started) and so before any 2 s result existed. Design (3 seeds, MPS, same
+scoring and breakdown; order 10 s, then 5 s, then 30 s):
+  TCN ~5 s: dilations 1 everywhere (12 blocks, kernel 3) -> RF 1 + 2 x 12 = 25 steps = 5.0 s; parameters unchanged 215,812.
+  MS-TCN ~5 s: NOT reachable by dilations alone (30 kernel-3 layers in series on the class path give at least 61 steps =
+    12.2 s, which is the 10 s model). So the 18:24 option (a) is used for the MS-TCN only: all layers kept, dilation 1
+    everywhere, backbone all 10 layers kernel 3, each refinement stage layer 0 kernel 3 and layers 1-9 kernel 1 -> class path
+    1 + 2 x (10 + 1 + 1) = 25 steps = 5.0 s; boundary path 1 + 2 x (10 + 1) = 23 steps = 4.6 s; parameters 2,630,317 -
+    27 x 2 x 96 x 96 = 2,132,653 (refinement stages lose temporal width only).
+
+ADDENDUM 2026-11-13 09:02 CST (wall clock; user request, from a suggestion by a colleague; written before any of these runs)
+Setting: the "clean" data are the 3 Metrica sample games (labels by Metrica's rules, the provider of the match); the
+"auxiliary" data are the 75 games of other providers (DFL, PFF, SkillCorner), whose labels follow other conventions.
+Two ideas, each tested on held-out Metrica by leave-one-game-out (strict labels), with DFL and SkillCorner as checks.
+(S) STACKING: models trained on the auxiliary data are frozen and their outputs are used as predictors for a small model
+    trained on Metrica only. Inputs: the per-step probabilities (H, A, D) of v8's four members (none of them trained on
+    Metrica: TCN o_ls05 with TTA, MS-TCN m5c_C192ls_skcft, radar_pff, pointer r5_ptr_ballc_p20M) at offsets
+    -2, -1, -0.4, 0, +0.4, +1, +2 s, with home/away swap symmetry enforced by augmentation.
+    Two stackers, fixed now: (S1) multinomial logistic regression (L2, C = 1); (S2) LightGBM, 200 trees, depth 4,
+    learning rate 0.05. Each trained on 2 Metrica games (both bench seeds) and applied to the third.
+    Two uses, fixed now: (a) the stacker's probabilities as a FIFTH member of the MBR decode with v8's four members
+    (v8's decoder settings, alpha 0.1, rho 0.2, margin 0); (b) the stacker alone, decoded by the base rule (1 s
+    smoothing, 1.25 s hand-back). For DFL and SkillCorner the stacker trained on all 3 Metrica games is applied.
+(A) AUGMENTATION of the clean data in v9's Metrica fine-tune (recipe of m5c_C192ls_skcft_metft unchanged otherwise):
+    (A1) 12 degradation seeds per Metrica game instead of 3; (A2) A1 plus a touchline mirror (y -> width - y) of each
+    Metrica game, features recomputed from the mirrored tracking. Team swap is already an augmentation in the recipe;
+    most TCN / MS-TCN features are relative distances, so a common shift or rotation changes them little: only the
+    mirror is added. Fine-tune seed noise is unknown, so the v9 recipe and A1 / A2 are each fine-tuned with 3 seeds
+    (0, 1, 2) on the same device, and compared by 3-seed means (member alone, and inside the ensemble).
+Reference: v9 (F4sP-MF2): held-out Metrica 0.7976, DFL 0.7590, SkillCorner 0.6270; v8: 0.7868 / 0.7615 / 0.6285.
+Rule for any candidate to replace v9 (same thresholds as 12:31, now against v9): held-out Metrica better on at least 2
+of 3 games AND mean gain >= +0.005 (for A: also larger than 2 seed SE of the difference of 3-seed means); DFL fine4 not
+worse by more than 0.005; SkillCorner fine3 not worse by more than 0.010; byte-identical reproduction; built and
+approved by the user before 12:00 CST 14 Nov. Six candidate ensembles are scored here (S1a, S1b, S2a, S2b, A1, A2):
+with that many tries on 3 games, a pass is weak evidence and is reported as such. No public-window score enters.
+
+ADDENDUM 2026-11-13 09:15 CST (wall clock; user request via coordinator; written before any training or scoring of these
+models): hand-built feature groups "newfeat" (EXPLORATORY, write-up only; no submission consequence; arch/r5_arch/newfeat).
+Question: do acceleration (ACC) and area / angle geometry (SHAPE) features, which the 194 per-step features lack, help the
+feature-based models? Families and recipes UNCHANGED (1x): TCN 0.22M = o_ls05 (repo train_tcn.py, cfg {"ls":0.05});
+MS-TCN 2.6M = m5c_C192ls (repo train_mstcn.py, cfg {"cosine":0,"clip":0,"C":192,"Cr":96,"ls":0.05}); Mac GPU (--device mps),
+fold pff0 only. Variants: base (existing 194; reference = the existing MPS seed triples o_ls05 / rd_tcn02_s1_mps /
+rd_tcn02_s2_mps and rd_ms26_s{0,1,2}_mps, already scored), +ACC (208), +SHAPE (209), +ACC+SHAPE (223). Seeds 0, 1, 2 per
+variant and family: 18 new models nf_<tcn|ms>_<acc|shape|both>_s<k>.
+Data: the SAME degraded inputs as ds_pff2 (raw files of the 43 pff0 training games x seeds 41-43; 129 files): base columns
+recomputed by the repo features.compute and asserted bit-identical to the stored X; new columns appended (ACC block, then
+SHAPE) at the stored idx; y / yc / idx / targets unchanged. Feature code = newfeat/code/nf_features.py, used by both the
+dataset builder and the scoring pipelines (repo feature code and defaults untouched).
+Definitions (fixed now; fps 25; positions: players as float32 like the existing features; "ball" = raw ball with gaps
+<= 0.5 s linearly filled, missing = the existing ball_seen / ball_gap flags; new columns are 0 where missing, no new flags):
+ ACC (14): ball: raw ball with every gap linearly interpolated, then nn_pointer/ballc.py _kinematics verbatim (central-
+  difference velocity, centred 5-frame moving mean, speed; acc[t] = (speed[t+5] - speed[t-5]) / 0.4 s in m/s^2, signed;
+  turn[t] = angle between the velocities at t-5 and t+5 / pi, 0 unless both speeds > 0.5 m/s); both 0 where the ball is
+  missing. Columns ball_acc, ball_turn, ball_acc_mx{0.4,1,2} = max |acc| over t +- 0.4 / 1 / 2 s, ball_turn_mx{0.4,1,2} =
+  max turn over the same windows. Players: velocity exactly as the existing speed features (frame difference, > 12 m/s ->
+  NaN jump filter, centred 5-frame moving mean); acceleration vector = (v[t+5] - v[t-5]) / 0.4 s, magnitude capped at
+  15 m/s^2. Per team T in {H, A}: T_acc_near = |a| of T's player nearest the ball (the H_d1 / A_d1 player); T_acc_3m =
+  largest |a| among T's players within 3 m of the ball (0 if none); 0 where the ball is missing, T has no tracked player
+  or the acceleration is undefined; diff_acc_near, diff_acc_3m = H - A.
+ SHAPE (15): T_hull = convex-hull area (m^2) of T's tracked players (0 if fewer than 3 or collinear); diff_hull = H - A;
+  hull_overlap = area(hull H intersect hull A) / min(area H, area A) in [0, 1] (0 if either is 0). T_pang = angle (rad) at
+  the ball between the directions to T's two nearest players; T_ptri = area of the triangle ball + those two players; 0 if
+  the ball is missing or T has fewer than 2 tracked players; diff_pang, diff_ptri = H - A. T_lanes = number of T's tracked
+  players within 25 m of T's player nearest the ball (excluded himself) whose segment from that player has no tracked
+  opponent within 1.5 m (point-to-segment); 0 if the ball is missing or T has no tracked player; diff_lanes = H - A;
+  lanes_near = lanes of the team whose nearest player is nearer the ball (exact tie: max), lanes_far = the other (tie: min).
+ No new column depends on the attack direction (areas, angles, counts, magnitudes): no canonicalisation needed. Swap kinds:
+  H_x / A_x pairs, diff_* anti, the rest sym. Swap test (run on PFF-10503 seed 41 during development, before this
+  addendum): features of the swapped game (slot_team -> 1 - slot_team, sign -> -sign) equal F[:, perm] * signs on all 223
+  columns exactly. Geometry checked against scipy ConvexHull / polygon clipping / python loops on 400 frames.
+Checks before scoring: (i) inference path (scoring pipeline) vs dataset builder: identical extra columns on a bench game
+(PFF fold-0 game 1, bench degradation) at a stride-5 phase; (ii) per model numpy (as scored) vs torch (trainer module, float64
+CPU) on the first PFF fold-0 game: identical decoded codes, max |dP| < 1e-6; negative control: the new columns replaced by
+their training means must change the outputs.
+Scoring (exact numpy CPU path, size2 run1.sh): PFF fold-0 (12 games) fine3, SkillCorner (20) fine3 (raw / T0.5 / T1 mean),
+Metrica dev (2 games x 2 seeds); never DFL. Report per family and variant: 3-seed mean and SD per bench, diff of 3-seed
+means vs base +- seed SE (sqrt(SD^2/3 + SDref^2/3)), cross-seed wins of 9, dead-ball (D-class) F1, alive/dead F1, team
+accuracy on both-alive frames, possessions per 90 (as ctxwin). Reading rule (fixed now): a group "helps beyond seed noise" on
+a bench if diff >= +2 seed SE AND cross-seed wins >= 8 of 9; "hurts" symmetrically. 6 variant-family comparisons x 3 benches =
+18 comparisons, so one isolated pass is weak evidence and is reported as such. Previous seed SD: SKC 0.003 (TCN), 0.007 (MS-TCN).
+Feature importance (only if cheap): for the best TCN variant (largest mean of its three bench diffs), on the 12 PFF fold-0
+games, each new column (and each whole group) circularly shifted in time by half of each half's length (keeps its
+distribution and autocorrelation, breaks alignment); importance = drop in PFF fold-0 fine3, mean over the 3 seeds.
+
+POST-HOC ADDITION 2026-11-13 09:27 CST to the 09:02 addendum (coordinator request; written AFTER the S results on Metrica / DFL /
+SkillCorner were seen, BEFORE this computation). No submission consequence by itself; it does not change the 09:02 rule or verdicts.
+Reason: S2a matched v9 on held-out Metrica while beating it on DFL; a fourth benchmark is wanted. S1a and S2a are scored on the 48 PFF
+World Cup games (out-of-fold member outputs of the v9 World Cup check, arch/r5_arch/v9_pff, table/pff_v9.py): fifth MBR member =
+the stacker trained on all 3 Metrica games (as for DFL / SkillCorner), applied to the PFF probabilities of the four members of
+"v8 (PFF folds)" [o_ls05, v9pff_skcft, radar_pff, r5_ptr_ballc_p20M]; decoder hmm alpha 0.1, rho 0.2, margin 0. Mismatch stated in
+advance: the TCN's PFF outputs (o_ls05) are WITHOUT test-time averaging, while the stacker was trained on the TTA4 + all_a50 TCN
+outputs. Reported: fine3 spellF1, macroF1, paired diff ± SE and wins/48 vs "v8 (PFF folds)" (0.8252) and "v9 (PFF folds)" (0.8227),
+possessions; plus macroF1 of S1a / S2a on DFL, SkillCorner and held-out Metrica next to v8's / v9's. Those two references are
+reproduced first.
+
+ADDENDUM 2026-11-13 09:50 CST (wall clock; user request via coordinator: "a model that uses both spatial and temporal attention at
+the same time; train it on the cloud"; written BEFORE any training or scoring of this model). EXPLORATORY "stattn"; cannot change
+the submission (no fold sets, no gates). Code outside the repo: arch/r5_arch/stattn/ (NOTES.md, report.txt).
+Model (one configuration, fixed now, no tuning): factorised space-time transformer over the degraded tracking at 5 steps / s.
+ Tokens = (step, entity) for one frame/ball token + the K = 10 tracked players nearest the (interpolated) ball AT EACH STEP
+  (ballc.prepare with K = 10 = the pointer's r5_ptr_ballc inputs with two more players; nearest-first). Per-step choice, not
+  window-centre choice: every step's possessor must be among its tokens for the per-step pointer head, and over a 19 s window
+  the players near the ball at the centre are often far from it at the edges. Player-token features (10) = the pointer's
+  ball-relative, attack-canonical ones (dx, dy, vx, vy, team flag +-1, distance, exp(-d / 2 m), ball-seen flag, speed, rank / K).
+  Frame token features = the pointer's 14 frame features xf (interpolated ball position / velocity / acceleration / turn, seen
+  flag, time since / until seen, players tracked, speeds, gap) + nn_pff's 194 frame features X (normalised as train_ptr: team-
+  symmetric mean / std over the training files, NaN -> 0), exactly as the pointer p20M uses them (like for like). Team swap =
+  the pointer's (negate dx, dy, vx, vy, team, xf 0, 1, 10, 11; X permuted / sign-flipped; H <-> A), p = 0.5 in training and
+  swap-averaged at inference.
+ Tracklets: slot key = slot * 4096 + number of empty -> filled starts of that slot up to the frame (25 fps raw slots); a slot
+  reused after a gap is a new tracklet. Undetectable identity swaps inside a continuous tracklet stay merged (no way to see them).
+ Blocks (L = 4), each = (a) spatial self-attention across the 11 tokens of the same step (padding masked; no positional
+  code: rank is a feature) + FFN, then (b) temporal self-attention: a player token attends only to tokens with the SAME
+  tracklet key at other steps of the window (it is among the 10 nearest there), the frame token to all frame tokens of the
+  window; padding attends to itself only; + FFN. Relative position in time = rotary encoding (RoPE) on the step index in (b).
+  Pre-LayerNorm, D 384, 6 heads, FFN 4D, GELU, dropout 0.1. Parameter count ~14.5M (exact value logged).
+ Outputs per step (the frame token is the learned per-step pooling): pointer logits over the 10 player tokens (linear on
+  [final player state, input features]) + dead logit (MLP on [frame state, max over player states]) -> softmax -> P(H) =
+  sum over home tokens, P(A) over away, P(D) = dead (= the pointer's team_probs); hand-over logit and direct 3-class head on
+  the frame token (as the pointer's ho / dir heads).
+ Training = train_ptr.py's recipe where it is not architecture-specific: loss team NLL (ls 0.05, 1e-3 floor as ballc) +
+  0.5 pointer CE (possessor among the 10 kept; dead -> dead class) + 0.5 hand-over BCE + 0.3 direct-head CE (ls 0.05);
+  sampling = length-weighted crops, DFL share 0.15; fold pff0 training files of ds_pff2 (36 PFF + 7 DFL games x seeds 41-43);
+  same total sampled steps as the pointer (6000 x 8 x 1024 = 49.2M): crop 96 steps (19.2 s), batch 64, 8000 iterations;
+  AdamW lr 3e-4, wd 0.01, warm-up 3 %, cosine, clip 1.0; bf16 autocast on the H100. Seeds 0, 1, 2 (names st_s0/1/2).
+ Inference: per block and stride-5 phase (as the pointer pipeline), windows of 96 steps every 32 steps; each step's output
+  from the window where it is in the central 32 steps (first / last window: their outer parts); swap-averaged; the pointer's
+  decoder unchanged (nn_pff_tcn decode_probs with the pointer's P and hand-over probability). CUDA float32, TF32 off.
+Comparisons: (1) the pointer r5_ptr_ballc_p20M fold-0 (seed 0, existing outputs) + 2 more seeds of the same recipe (train_ptr.py
+ unchanged, cfg seed 1 / 2, same pod, scored on the CUDA path pod_cuda.py; p20M seed 0 also re-scored on that path as a path
+ check), if time allows; otherwise the single run, said so. (2) the TCN (o_ls05, rd_tcn02_s1_mps, rd_tcn02_s2_mps) and MS-TCN
+ (rd_ms26_s0/1/2_mps) seed triples of repdata. Benches: PFF fold-0 12 games fine3, SkillCorner 20 games fine3, Metrica dev
+ (2 games x 2 seeds); never DFL. Reported: per-seed scores, 3-seed mean and SD, diff vs pointer 3-seed mean +- seed SE
+ (sqrt(SD^2/3 + SDref^2/3)), cross-seed wins of 9 on game-level means, D-class F1, team accuracy on both-alive frames,
+ possessions / 90, parameters, training time, and frame-level agreement of the decoded labels with the pointer's and the
+ TCN's (scored frames). Reading rule (fixed now): "beats the pointer beyond seed noise" on a bench only if diff >= +2 seed SE
+ AND cross-seed wins >= 8 of 9; "worse" symmetrically; otherwise "not distinguishable". With a single pointer run the seed SE
+ uses the pointer family's SD from its other runs if available, else stattn's SD alone, said so.
+
+NOTE 2026-11-13 10:23 CST (wall clock; user decision): the self-imposed cut-off for a submission change (12:00 CST 14 Nov) is moved. The
+competition deadline is 17 Nov. New cut-off: a candidate must be built, verified and approved by the user by 18:00 CST
+16 Nov; 17 Nov is kept for submitting. Standing candidates: v9 (current default) and v10 = F4sP + stacker S2 (being built;
+it failed the 09:02 rule on Metrica and is favoured by DFL / PFF read afterwards). Further exploratory experiments
+requested by the user today (each gets its own addendum before running): stacker extensions (more training data, more
+inputs, on v9's members), a provider-convention input flag, seed-averaged members, relational touch-like features, and
+a label-free look at the match's broadcast tracking. With this many candidates scored on 3 Metrica games, any pass on
+Metrica alone is weak evidence; gains must also show on the large benches (DFL, PFF, SkillCorner).
+
+ADDENDUM 2026-11-13 10:30 CST (wall clock; user request via coordinator; written BEFORE any of these stackers is fitted or
+scored): stacker extensions "stack_ext" (EXPLORATORY; arch/r5_arch/stack_ext/, NOTES.md, report.txt). Mac CPU only, saved member
+outputs + LightGBM; no member is retrained. It does not touch the v10 (S2a) build; a qualifying variant is reported, not built.
+Base recipe = S2 as implemented in stack_aug/code/stack.py: inputs = (H, A, D) probabilities of 4 members at offsets -50, -25,
+ -10, 0, +10, +25, +50 frames (-2 .. +2 s; index clamped inside the frame's block), member-major (84); LightGBM multiclass, 200
+ trees, max_depth 4, learning rate 0.05, other parameters default, seed 0, deterministic, force_row_wise, n_jobs 2; every training
+ row also enters H<->A swapped (members' H/A columns and the label exchanged); prediction at every frame inside blocks (outside:
+ 1/3 each, code 3); used ONLY as the fifth member of mbr_decode decoder.decode with {src hmm, alpha 0.1, rho 0.2, margin 0} fixed
+ on every unit of every bench. FIRST CHECK: this code refits S2 and reproduces S2a's DFL 0.7642, SkillCorner 0.6281, PFF 0.8288,
+ held-out Metrica 0.7963 (and v8 0.7615 / 0.6285 / 0.8252 / 0.7868, v9 0.7590 / 0.6270 / 0.8227 / 0.7976) before any variant.
+Benches, member outputs (all already out-of-sample at the member level) and labels:
+ Metrica 3 games x bench seeds 2027/2028: v8 members = the not-Metrica-trained folders S used (stack.py MET_DIRS); strict labels.
+ DFL 7 games x 3 seeds (21 units): LOGO member outputs (nn_pff_dfl; TCN adapt32 TTA4+all_a50); labels = raw (vote_offline).
+ PFF 48 games (1 seed): out-of-fold [o_ls05, v9pff_skcft, radar_pff, r5_ptr_ballc_p20M]; labels raw. MISMATCH stated: the TCN's
+  PFF outputs have NO test-time averaging, its DFL / SkillCorner / Metrica outputs have TTA4+all_a50; E1/E2a rows mix both.
+ SkillCorner 20 games (1 seed): skc_mbr outputs (MS-TCN skcft = SKC-CV fold models; TCN, radar, pointer = full models that never
+  trained on SkillCorner); labels raw.
+Training rows: Metrica = frames t % 5 == 0 inside blocks with a strict H/A/D label, both seeds (= S2); DFL / PFF / SkillCorner =
+ frames t % 25 == 0 (1 per second) inside blocks with a raw H/A/D label. No row weights. Stated consequence: Metrica is about a
+ quarter of the pooled rows (exact counts logged) and a Metrica game-minute weighs 5x a game-minute of another bench.
+Level-2 folds (a unit is never predicted by a stacker that trained on any unit of its game): Metrica leave-one-game-out (3);
+ DFL leave-one-match-out (7; all 3 seeds out together); PFF the 4 folds of arch/nn_pff/selection_folds.json (= the members' PFF
+ folds); SkillCorner the 4 SKC-CV folds (adapt/skc_folds.json + the 5 holdout games = the MS-TCN's CV folds). For fold f of
+ bench B the pooled stacker trains on all rows of the other benches + B's rows outside f. Asserted in code for every unit.
+Variants (SIX scored, each only as the 5th MBR member; nothing else is scored or tuned):
+ E1a pooled DFL + PFF + SkillCorner + Metrica rows, 84 inputs, base recipe.
+ E1b E1a + 4 one-hot provider inputs (DFL, PFF, SKC, Metrica; each row its own; unchanged by the swap); at prediction time set
+     to "Metrica" on every bench (so DFL / PFF / SkillCorner are predicted in the Metrica convention).
+ E1c base recipe on the DFL + PFF + SkillCorner rows of the fold's training set, then continued (LightGBM init_model) with 100
+     more trees, same parameters, on Metrica rows only (all 3 games; for Metrica fold k the 2 other games; the base model for
+     the Metrica folds = all DFL + PFF + SkillCorner rows).
+ E2m S2 + 49 raw per-step signals (7 signals x the 7 offsets; 133 inputs), trained on Metrica only (LOGO; all 3 games for
+     DFL / PFF / SkillCorner).
+ E2a E1a's rows and folds with the same 133 inputs.
+ E3  S2 recipe (Metrica only) on v9's members: MS-TCN slot = m5c_C192ls_skcft_metft; MBR = v9's four + E3. Its Metrica input
+     = the held-out LOGO outputs probs/met_ft/m5c_C192ls_skcft_metft (game j's file from fold-j's model). Held-out game k: member
+     output from the fold-k model (never saw k), stacker trained on the 2 other games' labels (never sees k). Residual
+     dependence stated: the stacker's inputs on game j come from the fold-j model, which was fine-tuned on game k; a strict
+     nest needs members fine-tuned on a single Metrica game (training, out of scope). DFL / SkillCorner / PFF: member outputs
+     nn_pff_dfl/m5c_C192ls_skcft_metft (LOGO), skc_mbr/m5c_C192ls_skcft_metft (SKC-CV), nn_pff/v9pff_skcft_metft (PFF folds; TCN
+     without TTA as above); stacker trained on all 3 Metrica games.
+Raw signals (E2), per frame from the bench inputs (bench.prepared, bench.dfl2_prepared, bench_pff.pff2_prepared,
+ bench_skc.skc2_prepared: degraded slots, slot_team, ball), taken at the same 7 clamped offsets: seen = raw ball observed (0/1);
+ ball speed |v| (m/s), acceleration (m/s^2, signed) and turn (angle / pi) = nn_pointer/ballc.py _kinematics verbatim on
+ radar_common.interp_ball(ball) (independent of attack direction); dH, dA = distance (m) from the interpolated ball to the nearest
+ tracked player of home (slot_team 0) / away, 120 if that team has none tracked; ntrk = number of tracked players. Swap = dH <-> dA,
+ the rest unchanged. Check before use: on one DFL unit, signals of the team-swapped inputs (slot_team -> 1 - slot_team) = the
+ swapped columns exactly.
+Scoring per variant (and v8, v9, S2a recomputed with the same fixed decoder on every unit; PFF references = "v8 / v9 (PFF
+ folds)"): held-out Metrica strict (primary) and practice spellF1 per game (mean of 2 seeds) and mean; DFL fine4 (21; SE over 7
+ game means); SkillCorner fine3 (20); PFF fine3 (48); macroF1 on each (raw labels; Metrica strict and practice); possessions per
+ 90; paired vs v8, v9 and S2a: mean +- SE and wins.
+Decision rule (fixed now): a variant QUALIFIES (worth building) only if (1) vs S2a, sum of the paired mean differences DFL + PFF
+ + SkillCorner > 2 x sqrt(SE_DFL^2 + SE_PFF^2 + SE_SKC^2) AND none of the three below -1 of its own SE, AND (2) held-out Metrica
+ strict mean difference vs S2a >= 0. Secondary reading (no decision): bench by bench diff > 2 SE. If a variant qualifies: STOP and
+ report, no submission build. If none: S2a stays the stacker.
+Multiplicity and caveats stated now: 6 variants x 4 benches; Metrica has 3 games, so condition (2) passes by chance about half the
+ time; the 2-SE large-bench test has roughly a 2-3 % false-pass chance per variant, ~10-13 % for at least one of 6 if they were
+ independent (they are positively correlated: E1a/E1b/E1c/E2a share rows; DFL's SE rests on 7 games). E1 / E2a learn the DFL /
+ PFF / SkillCorner label conventions from the other games of those benches (S2a never saw them), so a gain there can be
+ convention fitting that does not transfer to Metrica-labelled data; condition (2) and E1b's Metrica flag are the only guards.
+ No public-window score enters.
+
+ADDENDUM 2026-11-13 10:31 CST (wall clock; user request via coordinator; written BEFORE any training or scoring of these runs).
+Two EXPLORATORY experiments "flagseed" (cannot change the submission: no fold sets, no gates; 18:00 CST 16 Nov cut-off unaffected).
+Code / notes: arch/r5_arch/flagseed/ (NOTES.md, report.txt). Pod: RunPod "mtah-train-h100-6", shared with the stattn agent
+(own folder /root/work/arch/r5_arch/flagseed; GPU cap per process; nothing of repo data/ or footpass uploaded).
+(P) PROVIDER-CONVENTION FLAG. Family MS-TCN m5c_C192ls (2,630,317 params + 4 x 192 for the flag inputs), 1x recipe exactly
+ (candidates/nn_pff/train_mstcn.py CFG + {"C":192,"Cr":96,"cosine":0,"clip":0,"ls":0.05}: 40 ep x 1200 crops, batch 8, crop
+ 1024, Adam 5e-4 constant), trained FROM SCRATCH on CUDA (pod H100, float32), unchanged trainer imported by a wrapper
+ (flagseed/code/train_flag.py) whose only changes are: (a) composite spec f0s<k>m<m> = excluded(pff0) | excluded(skc<k>) |
+ {MET-G<m>}; (b) with cfg flag = 1: 4 one-hot columns prov_DFL / prov_PFF / prov_SKC / prov_MET appended to every step's
+ features (constant over a game; the training game's own provider), kind "flag" (unchanged under the team swap), NOT
+ normalised (stored mean 0 / std 1, so a flag is a provider-specific input of 0 / 1).
+ Training data per model: the fold-pff0 training files of ds_pff2 (36 PFF + 7 DFL games x degradation seeds 41-43) + the 20
+ SkillCorner games x seeds 41-43 ($MTAH_WORK/skc_aleague/ds_all, as skc_train's ds_pff2_skc20) minus SkillCorner CV fold k
+ (5 games; candidates/adapt/skc_folds.json folds 0-2, fold 3 = the 5 SkillCorner holdout games) + the 3 Metrica sample games x
+ seeds 41-43 ($MTAH_WORK/ds_met, strict Metrica-rule labels, as MET-FT / skcmetft) minus Metrica game m. Per training: 60 games
+ (36 PFF, 7 DFL, 15 SKC, 2 MET).
+ Pairing (4 trainings per seed per variant): model j = 0..3 leaves out SkillCorner fold j and Metrica game m(j) = (j mod 3) + 1
+ (j0: G1, j1: G2, j2: G3, j3: G1). Which model scores which game (every bench game only by models of that seed that never saw
+ it; per game the mean of those models' scores):
+   PFF fold-0 12 games: all 4 models (none saw any PFF fold-0 game) -> per game the mean of 4 scores (fine3).
+   SkillCorner game in CV fold j: model j only (fine3, bench seed 2027, 20 games).
+   Metrica G1: models 0 and 3 (mean); G2: model 1; G3: model 2 (strict labels PRIMARY, bench seeds 2027 / 2028 averaged per game).
+ Sampling shares (train_mstcn rule: DFL w_dfl 0.15, SKC w_skc = -1 -> n_SKC / n_games, MET w_met; PFF the rest):
+   "nat" (as the existing recipes sample them): w_met = -1 -> SKC 15/60 = 0.250, MET 2/60 = 0.0333, DFL 0.150, PFF 0.567.
+   "m15" (Metrica up-weighted): w_met = 0.15 -> SKC 0.250, MET 0.150, DFL 0.150, PFF 0.450.
+ Variants, 3 training seeds each (cfg seed 0 / 1 / 2) = 4 x 3 x 4 = 48 trainings, in this priority order:
+   A  noflag_nat (control)           B  flag_nat (MAIN)        C  noflag_m15        D  flag_m15
+   (order: A, B seed 0, then C, D seed 0, then A, B seeds 1-2, then C, D seeds 1-2; if time runs short, C / D keep fewer seeds,
+   said so).
+ Scoring of each flag model at TWO flag settings: (ii) "true" = the bench's provider (PFF on PFF, SKC on SkillCorner, MET on
+ Metrica); (iii) "met" = MET on every bench (= the competition setting). On Metrica (ii) = (iii).
+ Inference: candidates/nn_pff/pipeline.py unchanged (decoder, swap average, 5 stride phases) via a wrapper that appends the
+ flag columns to fe.compute's output (flagseed/code/pipeline_flag.py); network arithmetic on the pod by size2's pod_cuda.py
+ (gpu_accel torch port, CUDA fp32, TF32 off); one game per variant also run with the numpy CPU path (codes compared, reported).
+ References (iv), existing fold-0 MS-TCNs, all games held out: m5c_C192ls fold_pff_0 (CUDA seed 0) and rd_ms26_s0/1/2_mps (the
+ plain 1x recipe, 3 MPS seeds); m5c_C192ls_skcft_f0 (skcft_big: SkillCorner fine-tune of the fold-0 parent; SkillCorner by its
+ own CV fold models). Their Metrica G3 outputs are computed here (pod CUDA path) and G1 / G2 strict from their existing dev codes.
+ Quoted (other lineage, 48 PFF games): shipped skcft / skcft_metft numbers from skcmetft/report.txt (SKC-CV, Metrica LOGO
+ strict) and the PFF fold-0 v9_pff fold versions (probs/nn_pff/v9pff_skcft, v9pff_skcft_metft).
+ Reported per bench (PFF f0, SKC CV, Metrica LOGO strict + practice secondary): per-seed scores, 3-seed mean, SD; diffs of
+ 3-seed means with seed SE sqrt(SD1^2/3 + SD2^2/3) and cross-seed wins of 9 on game-level means; dead-ball (D-class) F1 per
+ frame (pooled confusion vs the bench's primary labels); predicted possessions / 90 vs truth (pooled).
+ Comparisons: B(ii) vs A; B(iii) vs A; B(iii) vs B(ii) (does the MET flag move poss / 90 towards Metrica's?); D(iii) vs C;
+ D(iii) / B(iii) vs the references. Reading rule (fixed now, = stattn's): "better beyond seed noise" on a bench only if diff >=
+ +2 seed SE AND >= 8 of 9 cross-seed wins; "worse" symmetrically; otherwise "not distinguishable". Metrica has 3 games: any
+ Metrica-only result is weak evidence.
+ The questions as asked: does (iii) reach the Metrica score of a Metrica fine-tune without its losses elsewhere; does (ii) beat
+ the no-flag control on every bench.
+(V) SEED-AVERAGED MEMBERS, fold pff0, benches PFF fold-0 12 games (fine3), SkillCorner 20 games (fine3, fold-0 models),
+ Metrica dev (Sample Games 1, 2 x seeds 2027 / 2028, practice labels) - the size2 / repdata / stattn conventions.
+ Seed triples: TCN o_ls05 (seed 0) + rd_tcn02_s1_mps + rd_tcn02_s2_mps (all MPS); MS-TCN rd_ms26_s0/1/2_mps (MPS; plain
+ m5c_C192ls recipe); pointer r5_ptr_ballc_p20M (seed 0) + stattn's r5_ptr_ballc_p20M_s1 / _s2 (pod CUDA; reused, not
+ retrained). Radar: NOT seed-averaged (a fold-0 radar seed needs the radar net + LightGBM features of all 55 games, ~12 h CPU:
+ not cheap); radar_pff fold-0 (single) is the 4th member of every ensemble.
+ Seed-averaged member = the member pipeline unchanged with the per-step network outputs averaged over the 3 seeds before its own
+ decoder: TCN = nn_pff_tcn/pipeline_cfg.py's existing seed-ensemble (NN_PFF_MODEL a:b:c: softmax / hand-over probability /
+ change prior averaged); MS-TCN = a tcn_np pack (n_members 3: class and boundary probabilities averaged; tcn_np.Model
+ unchanged); pointer = a wrapper over nn_pointer/pipeline.py averaging P, hand-over probability and change prior over the 3
+ weight files. Run on the pod CUDA path (pod_cuda.py, TF32 off); one game per family checked against the numpy CPU path.
+ Ensembles: MBR decoder (mbr_decode decoder.decode) with the FIXED setting src hmm, alpha 0.1, rho 0.2, margin 0 (no grid, no
+ pick). Single-seed ensembles E0 / E1 / E2 = {TCN seed k, MS-TCN seed k, radar_pff, pointer seed k}; seed-averaged ensemble
+ Eavg = {TCN avg, MS-TCN avg, radar_pff, pointer avg}.
+ Reported: each averaged member vs the mean of its 3 single seeds (bench mean diff; per-game paired diff vs the per-game seed
+ mean ± SE over games, wins); Eavg vs mean of E0-E2 (same), E0-E2 bench means, their mean and SD (n-1), Eavg's position in
+ that range; D-class F1 and possessions / 90.
+ SECONDARY (only after all of (P) is trained; said so if not run): seeds 3, 4, 5 of the TCN, MS-TCN and pointer recipes trained
+ on the pod (CUDA; the train_cfg of o_ls05 / rd_ms26_s0_mps / r5_ptr_ballc_p20M + seed only) -> 3 more single-seed ensembles
+ E3-E5 and a second, independent averaged ensemble Eavg' (seeds 3-5). Run-to-run spread: SD (n-1) of the bench means of E0-E5
+ vs |Eavg - Eavg'| / sqrt(2) (1 df), and the per-game RMS difference between two runs (single pairs vs the averaged pair).
+ Caveat stated in advance: TCN / MS-TCN seeds 0-2 are MPS-trained, 3-5 CUDA-trained (device differences enter the spread).
+
+NOTE 2026-11-13 11:10 CST (flagseed): the secondary (V) run, seeds 3-5 and the second averaged ensemble, was cancelled before it started, at the user's direction. It measured run-to-run spread only. No result of it exists. The main (V) comparison and (P) are unchanged.
+ADDENDUM 2026-11-13 11:24 CST (wall clock; user request via coordinator; written BEFORE any ensemble containing stattn is decoded or scored).
+EXPLORATORY "stattn_ens": does the stattn model (arch/r5_arch/stattn, st_s0/1/2) help the fold-0 possession ENSEMBLE, as a 5th
+member or as a replacement for one member? Cannot change the submission (no fold sets, no gates). Code outside the repo:
+arch/r5_arch/stattn_ens/ (NOTES.md, code/, report.txt). No training, no new member outputs: existing outputs only.
+ Members (flagseed (V) seed triples, existing outputs): TCN o_ls05 / rd_tcn02_s1_mps / rd_tcn02_s2_mps; MS-TCN rd_ms26_s{0,1,2}_mps;
+ radar_pff (single, in every seed); pointer r5_ptr_ballc_p20M / _s1 / _s2; stattn st_s0 / st_s1 / st_s2.
+ Decoder: mbr_decode decoder.decode, FIXED src hmm, alpha 0.1, rho 0.2, margin 0 (no grid, no pick). Member order fixed:
+ [TCN, MS-TCN, radar, pointer]; +stattn appended 5th; a replacement puts stattn in the replaced member's slot.
+ Variants, each for seed s = 0, 1, 2 (seed s of every family; radar single): E = baseline 4 members; E+ST (5 members);
+ ST-for-TCN, ST-for-MSTCN, ST-for-radar, ST-for-pointer (4 members each).
+ Benches: PFF fold-0 12 games (fine3 spell F1; macro-F1 on raw targets), SkillCorner 20 games (fold-0 models; spell F1 = mean
+ over raw / 0.5 s / 1 s controlled labels; macro-F1 likewise), Metrica dev Sample Games 1, 2 x bench seeds 2027 / 2028 scored
+ on the STRICT labels (flagseed/labels, primary) and the practice labels (secondary; the label set of the known single-member
+ references). Metrics: spell F1 (primary) and frame macro-F1 (secondary).
+ Reported per variant and bench: diff vs E as 3-seed mean +- seed SE (sqrt(SD_v^2/3 + SD_E^2/3)); game-level paired diff of the
+ per-game seed means +- SE over games (wins); cross-seed wins of the 9 (variant seed i, E seed j) pairs; same-seed pair wins (3).
+ Reading rule (fixed now): a difference counts only at |diff| >= 2 seed SE AND >= 8 of 9 cross-seed wins in its direction
+ (<= 1 of 9 for a loss). A variant is "worth building" only if it GAINS on PFF (spell F1) by that rule and does NOT LOSE on
+ SkillCorner or Metrica (strict, spell F1) by that rule. Macro-F1 and Metrica practice are descriptive only.
+ Sanity check first: single-member pointer seed 0 must reproduce 0.8217 / 0.5902 / 0.7616 (PFF / SKC / Metrica dev practice);
+ otherwise stop. Run on the Mac CPU only (<= 2 processes, < 6 GB each; no MPS, no pod).
+ADDENDUM 2026-11-13 11:25 CST (wall clock; scope change from the user via coordinator; written BEFORE any ensemble of stattn_ens is decoded or
+scored; supersedes the variant list of the stattn_ens addendum above, whose variants are all subsets below). EXPLORATORY.
+PART 1 (fold-0 setting, members / decoder / benches / metrics / seeds / reporting / reading rule exactly as the stattn_ens addendum
+ above): ALL 31 non-empty subsets of {TCN, MS-TCN, radar, pointer, stattn}, member order fixed [TCN, MS-TCN, radar, pointer,
+ stattn] restricted to the subset; every subset (singletons included) goes through the same MBR decode. Seed s = seed s of every
+ family in the subset (radar single; {radar} alone is one run, no seed spread). Baseline = {TCN, MS-TCN, radar, pointer}. Each
+ subset vs the baseline: 3-seed mean diff +- seed SE, cross-seed wins of 9, same-seed wins of 3, game-level paired diff +- SE
+ (wins). "Worth building" rule unchanged (gain on PFF spell F1 at >= 2 seed SE and >= 8/9 cross wins; no loss on SkillCorner or
+ Metrica strict by the mirror rule). Also reported: possessions / 90 (pm.evaluate n_pred_spells / graded minutes, pooled; truth
+ alongside) per bench for every subset (asked for the baseline and {pointer, stattn}). Caveat stated now: the fold-0 MS-TCN
+ (rd_ms26, plain m5c_C192ls recipe) is NOT SkillCorner-fine-tuned, unlike the shipped one, so SkillCorner results understate
+ what the shipped MS-TCN contributes.
+PART 2 (shipped members, full benchmarks; existing member outputs, stack_ext/code/ext.py loaders imported read-only): all 15
+ non-empty subsets of the v9 members {TTA TCN adapt32/o_ls05__tta4_all_a50, m5c_C192ls_skcft_metft, radar_pff, r5_ptr_ballc_p20M}
+ and of the v8 members (same with m5c_C192ls_skcft); subsets without the MS-TCN are common to both (computed once). Fixed MBR
+ decode (hmm, alpha 0.1, rho 0.2, margin 0) on Metrica 3 games x 2 seeds strict (LOGO-strict outputs as in v9's evaluation;
+ practice secondary), DFL 7 games x 3 degradation seeds = 21 units (LOGO, fine4), SkillCorner 20 (CV, fine3), PFF 48 (fold
+ models, fine3); macro-F1 secondary. First check: the full 4-member subsets must reproduce v9 0.7976 / 0.7590 / 0.6270 / 0.8227
+ and v8 0.7868 / 0.7615 / 0.6285 / 0.8252 (Metrica / DFL / SKC / PFF); stop if not. Each subset vs its full 4-member set
+ (v9 subsets vs v9, v8 subsets vs v8): paired diff +- game-level SE (wins) per bench (Metrica over 3 game means, DFL over 21 units
+ as stack_ext's data.paired).
+ Part 2 reading rule (fixed now): a subset counts as BETTER than the full set only if it gains by > 2 game-level SE on at least
+ one large bench (DFL, SkillCorner, PFF), is not below by > 2 SE on any large bench, and its Metrica strict mean diff is >= 0.
+ It counts as WORSE where it is below by > 2 SE on a large bench. Anything else: not distinguishable.
+Reporting: one table per part sorted by the mean of the bench scores (Part 1: PFF, SKC, Metrica strict spell F1, 3-seed means;
+ Part 2: Metrica strict, DFL, SKC, PFF), baseline / full set marked. Picking the best of 31 (15) subsets is a selection on these
+ benchmarks: only differences beyond the rules above count, and even those are exploratory. No submission change follows from
+ this experiment.
+
+ADDENDUM 2026-11-13 11:41 CST (wall clock; user request via coordinator: "fine-tune stattn on SkillCorner"; written BEFORE any
+fine-tune training or scoring; stattn's plain results were already seen). EXPLORATORY "stattn SKC-FT"; cannot change the submission.
+Recipe = the SKC-FT recipe as applied to fold-0 parents in skcft_big (ADDENDUM 2026-11-11 10:35) and to the pointer
+(r5_ptr_ballc_p20M_skcft, 10 Nov 21:10), adapted to stattn in proportion, fixed now, not tuned on results:
+ Parents: stattn fold-0 models st_s0 / st_s1 / st_s2 (fold_pff_0.npz); weights AND normalisation kept, fresh optimiser.
+ Specs per parent (skcft_big's construction): pff0s = pff0 training games (36 PFF + 7 DFL) + all 20 SkillCorner games (SKC share
+  20/63) -> scores PFF fold 0 and Metrica dev; f0skc<k> (k = 0..3) = pff0 + the 15 SkillCorner games outside CV fold k (share
+  15/58) -> scores the 5 SkillCorner games of fold k. CV folds = data.skc_cv_folds() (adapt/skc_folds.json 3 x 5 + the 5
+  skc_aleague holdout games). PFF fold 0 therefore comes from the pff0s model (the harness's choice in skcft_big, whose
+  C192 SKC-FT fold-0 MS-TCN gives PFF 0.8012 / SKC-CV 0.6095), NOT from an average of the 4 CV models.
+ Length and lr in proportion to the pointer's fine-tune (lr 0.1 x parent peak; 750 of the parent's 6000 iterations = 1/8;
+  6.14M sampled steps): lr 3e-5 (0.1 x 3e-4), 1000 iterations (1/8 of 8000; 1000 x 64 x 96 = 6.14M steps), batch 64, crop 96,
+  warm-up 3 % + cosine to 0 (as the pointer FT, whose parent also had warm-up + cosine), AdamW wd 0.01, clip 1, dropout 0.1,
+  bf16; losses / label smoothing / swap augmentation unchanged; DFL share 0.15; SKC share = its share of the spec's training
+  games (w_skc = -1); PFF the rest; seed = the parent's seed.
+ SkillCorner training files: skc_aleague/ds_all (20 games x degradation seeds 41-43, nn_pff features) + stattn inputs built with
+  prep_st's code + possessor targets with make_owner_skc.py's rule (player of the latest player_possession / direct
+  engagement, matched to the nearest same-team degraded slot <= 3 m) + data.targets. Open data; built on the Mac, uploaded.
+ Scoring (pod, CUDA fp32 TF32 off, pipeline_st.py unchanged): SkillCorner CV 20 games (each by the fold model that never trained
+  on it; checked against train_games), PFF fold 0 (12) and Metrica dev with pff0s. Names: st_s<k>_skcft_f0 (harness convention:
+  probs/nn_pff/<name>, probs/skc/<name>_f0, probs/nn_pff_metrica/<name>_f0).
+ Comparisons with the 09:50 reading rule (diff >= +2 seed SE AND cross-seed wins >= 8/9 = better; symmetric = worse):
+  (1) fine-tuned stattn vs plain stattn (3 vs 3 seeds); (2) vs plain pointer p20M (3 seeds); (3) vs the fold-0 SKC-FT MS-TCNs
+  m5c_C192ls_skcft_f0 / m5c_C528ls_skcft_f0 (single runs: seed SE from stattn-FT's SD and the MS-TCN 3-seed SD of repdata,
+  stated), and as context only the pointer SKC-FT r5_ptr_ballc_p20M_skcft on SkillCorner CV (its parent trained on all 48 PFF
+  games, so no PFF fold-0 comparison). Also D-class F1, team accuracy, possessions / 90. No DFL LOGO check exists in this
+  fold-0 setting (the pff0 parents trained on all 7 DFL games); PFF fold 0 is the stand-in for "did it lose on fine labels".
+
+ADDENDUM 2026-11-13 11:58 CST (wall clock; user ADDITION via coordinator 10:25, after the ACC / SHAPE runs were scored
+(results reported 11:57); written before any REL dataset build, training or scoring): newfeat third group REL (relational,
+touch-like), EXPLORATORY, write-up only. Same design as the 09:15 newfeat addendum: TCN o_ls05 recipe and MS-TCN m5c_C192ls
+recipe unchanged, fold pff0, seeds 0, 1, 2, Mac MPS, the same 129 degraded training files (ds_pff2 raw, base asserted
+bit-identical), scoring PFF fold-0 / SkillCorner / Metrica dev on the exact numpy path (never DFL), same checks (swap test,
+scoring-path features == builder features on a bench game, numpy vs torch + negative control per model), same report and
+reading rule (diff >= +2 seed SE and cross wins >= 8/9). Variants: base (existing triples) vs +REL (194 + 19 = 213) vs
++ACC+SHAPE+REL (223 + 19 = 242); 12 new models nf_<tcn|ms>_<rel|asr>_s<k>. Also reported: +ACC+SHAPE+REL vs the scored
++ACC+SHAPE triple (does REL add on top). Code newfeat/code/nf_rel.py (docstring = these definitions).
+Definitions (fps 25, h = 0.2 s = 5 frames; players float32; ball = raw ball with gaps <= 0.5 s filled; every REL column is 0
+where the ball is missing at that step (existing ball_seen / ball_gap flags); no column depends on the attack direction;
+H_x / A_x pairs swap, diff_* and touch anti, the rest sym):
+ T_relclose = -(dist_j(t+h) - dist_j(t-h)) / 2h, j = T's player nearest the ball at t (same slot at both ends; ball and player
+  both moving), m/s, + = approaching, clipped to +-40 m/s (degraded-ball jumps; seen as +-200 in the unit check), 0 if
+  undefined; diff_relclose = H - A.
+ Ball event at t: ballc kinematics as ACC (acc m/s^2, turn = angle / pi); s = max(turn / 0.15, |acc| / 12); event iff s >= 1
+  and s(t) is the max of s over t +- h. touch(t) = +1 if an event at t has a home player within 1.5 m of the ball at some
+  frame of t +- h and the home team's minimum ball distance over t +- h is strictly smaller than the away team's, -1 the same
+  for away, else 0. T_touch_b1 / b3 = number of T's touches in [t - 1 s, t) / [t - 3 s, t); T_touch_f1 / f3 in (t, t + 1 s] /
+  (t, t + 3 s]. (Unit check, PFF-10503 seed 41: 15.7 home + 9.1 away touches per minute; thresholds chosen before any
+  training, from feature rates only.)
+ nn_chg_b1 / b3 = number of frames in (t - 1 s, t] / (t - 3 s, t] where the overall nearest tracked player to the ball (slot)
+  differs from the previous frame's (both frames with ball and a tracked player); nnteam_chg_b1 / b3 the same for that
+  player's team.
+ opp_dist = distance between H's and A's players nearest the ball; opp_relspeed = |v_H - v_A| of those two (existing smoothed
+  velocities); 0 if either missing.
+ ball_since_turn = log1p(frames since the last frame with turn >= 0.15), cap 60 s.
+ 19 columns. Swap test (unit check, before this addendum): exact on all 242 columns.
+
+ADDENDUM 2026-11-13 11:59 CST (wall clock; user request via coordinator; written BEFORE any ensemble with the new-feature members was decoded or
+scored; the members' ALONE results (newfeat report 11:57) were already seen). "acc_ens", EXPLORATORY; the submission default does
+not change. Work folder arch/r5_arch/acc_ens. Question: does the ACC (and ACC+SHAPE) input-feature gain of the TCN / MS-TCN
+survive inside the possession ENSEMBLE?
+STAGE 1 (Mac CPU, existing member outputs only, no training): fold-0 MBR ensembles, fixed decoder (candidates/mbr_decode
+ decoder.decode, src hmm, alpha 0.1, rho 0.2, margin 0), member order TCN, MS-TCN, radar, pointer; per seed k = 0, 1, 2 the
+ members are TCN[k], MS-TCN[k], radar_pff (single), pointer[k] (r5_ptr_ballc_p20M, _s1, _s2), as stattn_ens Part 1.
+ Baseline B: TCN = o_ls05 / rd_tcn02_s1_mps / rd_tcn02_s2_mps, MS-TCN = rd_ms26_s{0,1,2}_mps.
+ Variants: (i) TCN -> nf_tcn_acc_s<k>; (ii) MS-TCN -> nf_ms_acc_s<k>; (iii) both -> the +ACC pair; (iv) both -> the +ACC+SHAPE
+ pair nf_tcn_both_s<k> / nf_ms_both_s<k> (newfeat outputs, same benches, same seeds).
+ Benches: PFF fold 0 (12 games, bench_pff fine3), SkillCorner (20 games, fine3 = mean over raw / controlled 0.5 / 1 s),
+ Metrica dev (Sample Games 1, 2 x bench seeds 2027 / 2028; strict labels flagseed/labels = PRIMARY, practice labels secondary;
+ game unit = mean of the two bench seeds -> 2 games). Metrics: spellF1 (primary) and macroF1 (secondary).
+ Per variant vs B, per bench: diff of 3-seed means +- seed SE = sqrt(SD_v^2/3 + SD_B^2/3); cross-seed wins of 9 (game-level
+ mean diffs over all seed pairs); game-level paired diff of per-game seed means +- SE over games (wins). Possessions / 90 shown.
+ RULE (fixed now): a variant PASSES iff on PFF diff >= +2 seed SE AND cross wins >= 8/9, AND on neither SkillCorner nor Metrica
+ strict does it LOSE by the mirror rule (diff <= -2 seed SE AND cross wins <= 1/9). Among passing variants Stage 2 takes the one
+ with the highest mean of its three bench diffs (PFF, SKC, Metrica strict spellF1). No pass -> stop after Stage 1.
+STAGE 2 (only if a variant passes): build the shippable members of the chosen variant with the new columns, reproducing the
+ shipped recipes exactly apart from the input columns (and the input normalisation statistics, which follow the columns):
+ TCN = label-smoothed o_ls05 recipe, scored with TTA4 + half-adapted normalisation as the shipped adapt32/o_ls05__tta4_all_a50;
+ MS-TCN = width-192 m5c_C192ls, its SkillCorner fine-tune (m5c_C192ls_skcft, v8) and its Metrica fine-tune on top
+ (m5c_C192ls_skcft_metft, v9); every fold model the shipped ones have (DFL leave-one-game-out, PFF 4 folds, SkillCorner CV,
+ Metrica LOGO-strict), same seeds; each trained model checked to have trained on no game it scores. Only the families the variant
+ changes are rebuilt. Ensembles: v8-like = v8 with the new member(s), v9-like = v9 with the new member(s); same fixed decoder;
+ benches DFL 21 units (7 games x 3 seeds, LOGO), SkillCorner 20 (CV), PFF 48 (fold models), Metrica 3 games x 2 seeds strict
+ (LOGO; practice secondary). First check: reproduce v8 0.7615 / 0.6285 / 0.8252 / 0.7868 and v9 0.7590 / 0.6270 / 0.8227 /
+ 0.7976 (DFL / SKC / PFF / Metrica); stop if not reproduced. Then v8-like vs v8 and v9-like vs v9: paired diff +- game-level SE
+ (wins) per bench (DFL SE over the 7 games, wins over 21 units). Stage-2 reading rule (fixed now, as stattn_ens Part 2):
+ BETTER iff it gains by > 2 game-level SE on at least one large bench (DFL, SkillCorner, PFF), is not below by > 2 SE on any
+ large bench, and its Metrica strict mean diff is >= 0; WORSE where below by > 2 SE on a large bench; else not distinguishable.
+ Label-free match check (descriptive; no labels, the public 5 minutes not used): distributions of the new columns (ball_turn and
+ ball_acc first, then the rest of the group) on the BAR-ATH match input vs the degraded benchmark games (DFL, PFF, SkillCorner,
+ Metrica, degradation seeds as benched): quantiles (5/25/50/75/95/99 %) over ball-seen frames, share of frames with the ball
+ seen, share of frames where the column is non-zero; stated as alike / not alike with the numbers. Data stay on the Mac.
+ No candidate folder, no make_submission.py change; the report lists what a candidate would need.
+
+ADDENDUM 2026-11-13 12:00 CST (wall clock; user request via coordinator: "add the ACC features to the attention model AND to the
+pointer p20M"; written BEFORE any of these models is trained or scored). EXPLORATORY "stattn/pointer +ACC"; no submission change.
+ Features: the 14 ACC columns of the newfeat addendum (09:15 CST; ball_acc, ball_turn, ball_acc_mx{0.4,1,2}, ball_turn_mx{0.4,1,2},
+  H/A_acc_near, H/A_acc_3m, diff_acc_near, diff_acc_3m), computed by newfeat's nf_features.py COPIED unchanged except the repo
+  path / cache location (stattn/code/acc/), appended after the 194 nn_pff columns of the frame-token feature block X that
+  stattn and the pointer already read (208 columns; normalisation and team swap exactly as for the 194: train-set symmetric
+  mean / std, swap kinds sym / H:x-A:x / anti). Training X = newfeat's ds_acc (base 194 columns bit-identical to ds_pff2,
+  checked); everything else identical (st / ptrb inputs, owner, targets, sampling, recipes unchanged: train_st.py and
+  train_ptr.py with cfg = r5_ptr_ballc_p20M's + seed). Note known before training: both models' 14 per-step ball features
+  (xf) ALREADY contain the ball acceleration and turn angle of the interpolated ball at the step (ballc._kinematics, the
+  same function newfeat copied); new here are the 0-where-missing versions, the +-0.4/1/2 s maxima and the player
+  acceleration columns. So the TCN gain need not transfer.
+ Models: st_acc_s0/1/2 (stattn recipe, seeds 0-2) and r5_ptr_ballc_p20M_acc_s0/1/2 (p20M recipe, seeds 0-2), fold pff0.
+  At most 2 GPU trainings at a time (shared with the SKC fine-tune queue and flagseed). Scored on the pod (CUDA fp32, TF32 off):
+  PFF fold 0 (12), SkillCorner (20), Metrica dev, with the scoring features computed by the same copied module.
+ Checks: (i) feature identity: the copied module on a training file's raw input at the ds idx == ds_acc X (all 208 columns);
+  (ii) home/away swap: features of the swapped game (slot_team -> 1 - slot_team, sign -> -sign) == F[:, perm] * signs on the
+  14 new columns; (iii) negative control per model on the first PFF fold-0 game: the 14 new columns set to NaN (= their
+  training means after normalisation and NaN -> 0) must change the outputs (count of changed codes, max |dP|).
+ Comparisons with the 09:50 reading rule: stattn+ACC vs plain stattn (st_s0/1/2); pointer+ACC vs plain pointer p20M (seed 0
+  existing + s1/s2 of this morning); plus frame diagnostics (team accuracy on both-alive frames, H<->A swap share, D-class F1,
+  possessions / 90). Third variant (per-player acceleration in the player tokens) NOT run unless the two main tests finish
+  with time to spare; if run, it gets its own addendum first.
+
+ADDENDUM 2026-11-13 12:04 CST (wall clock; user request via coordinator ~12:00; written before any KIN2 dataset build, training or
+scoring): newfeat group KIN2 (extended ball kinematics), EXPLORATORY, write-up only. Tested ON TOP of ACC: variant
++ACC+KIN2 (208 + 26 = 234 columns) vs the scored +ACC triples (nf_<tcn|ms>_acc_s0-2) as the reference; also reported vs base.
+Same design as the 09:15 addendum (TCN o_ls05 / MS-TCN m5c_C192ls recipes unchanged, fold pff0, seeds 0-2, Mac MPS, same
+129 degraded training files with base asserted bit-identical, PFF fold-0 / SkillCorner / Metrica dev exact numpy path, never
+DFL, swap test, scoring-path == builder features, numpy vs torch + negative control, reading rule diff >= +2 seed SE and
+cross wins >= 8/9). 6 new models nf_<tcn|ms>_k2_s<k>. Code newfeat/code/nf_kin2.py (docstring = these definitions).
+Conventions = ACC: ball kinematics from the raw ball with every gap interpolated, ballc._kinematics velocity v and speed sp;
+every KIN2 column 0 where the ball is missing (the ACC mask); no attack-direction dependence; h = 0.2 s.
+ (1) jerk: a = (v[t+h] - v[t-h]) / 2h (vector), j = (a[t+h] - a[t-h]) / 2h; ball_jerk = log1p(|j|), ball_jerk_mx0.4.
+ (2) multi-scale: ball_turn_s0.2, ball_turn_s1 = angle(v[t - s/2], v[t + s/2]) / pi (0 unless both speeds > 0.5; span 0.4 s
+     skipped = ACC ball_turn); ball_spdratio_s{0.2,0.4,1} = log((sp[t+s/2] + 0.5) / (sp[t-s/2] + 0.5)); ball_curv =
+     |v x a| / max(|v|, 1)^3 clipped to [0, 2] 1/m.
+ (3) touches (detector fixed now = REL's: s = max(turn / 0.15, |acc| / 12) peak within t +- h, a tracked player within 1.5 m
+     at some frame of t +- h, toucher = team with the strictly smaller minimum distance; 24.8 touches/min on PFF-10503 s41):
+     touch_since, touch_until = log1p(frames since / until the nearest touch, cap 60 s); touch_last_team, touch_next_team
+     (+1 home, -1 away, 0 none; anti); touch_last_dist, touch_next_dist (toucher distance m); H_touch_b2, A_touch_b2 (touches
+     in [t - 2 s, t]); touch_rate_b2 = H + A.
+ (4) ball-carrier coupling: per team, nearest player's smoothed velocity u: T_bp_dv = |v - u| (cap 40 m/s), T_bp_align =
+     cos(v, u) (0 unless both > 0.5 m/s), diff_bp_dv; ball_fast_ratio(5) = log((|v| + 0.5) / (max player speed within
+     10 m (5 m) + 0.5)); opp_close / near_close = REL-style closing speed (+-40 cap) of the nearest player of the team not
+     owning / owning the overall nearest player (tie: mean).
+ Skipped (already in base or ACC): ball speed (ball_speed), tangential acceleration and maxima (ball_acc*), turn over 0.4 s
+ and maxima (ball_turn*), player-velocity closing speed (H_close / A_close / diff_close), 0.5-s displacement (ball_disp_*).
+ Unit check (before this addendum, PFF-10503 s41): swap test exact over 234 columns; subset equality exact; cost 1.2 s/game.
+ Jerk signal-to-noise, bench degradation vs the provider's raw ball (3 PFF fold-0 games, frames with both): var ratio 54-79,
+ r 0.99 (acc 31-86, turn 20-27): the bench's degraded ball is nearly the raw ball wherever it is observed.
+Sub-groups only by importance (no extra models): circular-shift importance (as 09:15) on PFF fold-0 for the TCN +ACC+KIN2
+seeds: each sub-group (1)-(4), the whole KIN2 block, and each column. Label-free distribution comparison of the ACC + KIN2
+columns: training files vs the PFF fold-0 / SkillCorner / Metrica dev bench inputs (quantiles, mean, SD, share of zeros),
+saved as JSON for the match-side comparison by another agent.
+
+ADDENDUM 2026-11-13 12:10 CST (wall clock; user request via coordinator: "build the broadcast-feed simulator and find a use of
+the broadcast feed that can be validated on the benchmarks"; written BEFORE any benchmark scoring of any rule below). "bcast_sim".
+Code / outputs: $MTAH_WORK/arch/r5_arch/broadcast/sim/ (Mac); member re-inference may run on the pod (open benchmark data only).
+SIMULATOR (sim.py sha256 4668fa1d875931f0, fit to aggregate match statistics only: params.json 6b27ae69800c3c82 from
+ match_params.py 88702fe8a72066d2; ball-error fit fit.json 1a898d6645aed938 on DFL clean balls; no match frame enters; params
+ never leave the Mac). Per bench unit (DFL 21 game-seeds, PFF 48, SkillCorner 20, Metrica 3 games x 2 seeds = the benches'
+ cached degraded inputs; clean ball; TRUE labels): state LIVE / CUT (cut-away spans around TRUE dead-ball runs with the match's
+ break probability by run length and joint (start, end) lags drawn from the match's lags relative to v9's dead-ball runs;
+ spurious cut-aways in true live time at the match's rate and durations); second ball seen only in LIVE frames, by two
+ renewal processes (p_seen | tactical seen 0.939, p_seen | tactical missing 0.287, match run-length quantiles); second-ball
+ error = AR(1) small error (match axis SD) + run-structured excursions (speed-dependent start rate fitted to the match's
+ share > 2 m by ball-speed bin, match > 2 m run lengths, truncated-lognormal magnitude fitted to the match's p90/p95/p99);
+ FOV centre (validation only). Broadcast players not simulated. Seeds fixed (crc32(unit) + 9100). Variants: main;
+ pess = lags x1.5, error tail x1.5, p_seen | tactical missing 0.20; opt = lags /1.5, tail /1.5, p_seen | tactical missing 0.35.
+ Validation (label-free statistics vs the match's table) is reported, not tuned on scores.
+FUSION RULES (fuse.py sha256 0b55324a8393e9cb; every threshold fixed here):
+ b1  decoder rule: on cue frames W (CUT runs, each extended by 1.0 s at its end) the decoder input P (mean of member
+     probabilities) is multiplied by (1, 1, 3) and renormalised; members unchanged.
+ b2  b1 + one extra MBR candidate = decoder.base(member codes) with the graded frames of W set to D.
+ a_all   ball rule: fill tactical-missing frames with the second ball where seen.
+ a_live  a_all only inside tactical gaps whose median team speed (mean over tracked slots of central-difference speed) >= 1.65 m/s.
+ a_short a_all only inside tactical gaps < 10 s.
+ a_cont  a fill is accepted only for a whole tactical gap fully covered by the second ball that meets the tactical ball within
+         2.0 m at both edges.
+ c_veto  where both balls are seen and differ by > 5 m for >= 25 consecutive frames, the tactical ball is set missing. Stated in
+         advance: on the benches the tactical ball carries no tracking error (degrade_v2 adds none), so this rule can only remove
+         correct observations there; it is run last and only if time allows.
+ENSEMBLES: v9 = final_f4spm's four members, v10 = v8's four members + stacker S2 (stack_ext's S2: LOGO on Metrica, all-Metrica
+ model elsewhere, trained on BASELINE member outputs and applied unchanged to rule outputs). Decoder: fixed cfg hmm, alpha 0.1,
+ rho 0.2, margin 0 (no prekick: benches have no tags). Ball rules: every member re-run with the rule's ball by one driver with the
+ benches' fold models (DFL LOGO folds JSON, PFF fold_pff_k, SkillCorner CV fold_skc_k for the SkillCorner-trained MS-TCNs,
+ Metrica fold_met_k for the Metrica-trained MS-TCN; others full), and the baseline re-run by the same driver (paired against it).
+ Driver check before any rule is scored: baseline member outputs vs the saved published ones on >= 1 unit per bench.
+ Decoder rules: on the saved member outputs (= the published references) and, once available, on the driver baseline.
+BENCHES / METRICS: DFL fine4 (21 units, SE over 7 game means), PFF fine3 (48), SkillCorner fine3 (20), Metrica strict spellF1
+ (3 game means of 2 seeds; practice secondary); macroF1 secondary. Paired diff vs the same ensemble without the rule: mean +-
+ game-level SE (wins).
+ACCEPTANCE ("worth shipping"), per ensemble, main simulator: (1) diff >= +2 SE on DFL or on PFF; (2) no bench with diff < -1 SE;
+ (3) under the pess simulator no bench with diff < -1 SE. pess and opt are run for every rule meeting (1)+(2); if none does, for
+ the rule with the largest summed z (DFL + PFF) of either ensemble (descriptive). 7 rules x 2 ensembles are compared: a pass is
+ still a selection among 14 and is reported as such. If a rule passes: a NEW candidate folder (DEFAULT_CANDIDATE unchanged,
+ no existing candidate edited), numpy/CPU, deterministic, run on the real match with the real aligned broadcast feed; frames
+ changed / possessions reported (description only).
+LIMITS stated now: the cut-away / stoppage relation was calibrated against v9's dead-ball runs and a speed proxy on ONE match,
+ not truth; tactical-ball errors are not simulated; no benchmark has a real second feed.
+NOTE 2026-11-13 12:16 CST (bcast_sim; BEFORE any score was read): the simulator's first label-free validation failed on one statistic: the
+ CUT share in true live time was 0.20-0.22 on DFL / PFF / SkillCorner vs 0.112 in v9-live time on the match (dead time 0.69-0.72
+ vs 0.70: fine). Cause: break spans were the union of every break associated with a v9 dead run, which on the match spans
+ neighbouring dead runs. Fixed in match_params.py (d2a0332d0df63169; calibrated label-free on the match by calib_states.py: breaks clipped to
+ [dead start - 5 s, dead end + 20 s] and owned by the dead run they overlap most) -> params.json 8dc4b8f8d47bd934; sim.py unchanged.
+ New validation: CUT in true dead 0.65-0.69, in true live 0.06-0.10. A decoder-rule scoring run started on the old feeds was
+ killed and its outputs deleted unread. Feeds regenerated (main / pess / opt) before any scoring.
+NOTE 2026-11-13 13:44 CST (bcast_sim; execution only, no rule / threshold / acceptance change; written before any ball rule was scored):
+ decoder rules b1 / b2 were scored (main sim, saved outputs): both fail (1) and (2) for v9 and v10 (reported to the coordinator).
+ Ball rules: the driver baseline reproduces the saved member outputs on DFL / Metrica / SkillCorner (pointer 2.4e-6, codes equal)
+ and on PFF for every member except the TCN slot, where the published PFF bench used plain o_ls05 outputs and the driver runs
+ the shipped TCN member (TTA4 + all_a50) with the PFF fold models; paired comparisons are against the driver baseline. Runs on
+ the pod CPU (container quota ~24 cores, 22 workers, ~16 min per unit); queue order DFL, PFF, SkillCorner, Metrica; c_veto and
+ the pess / opt runs after that. Decoder rules will also be scored on the driver baseline.
+
+ADDITION 2026-11-13 18:24 CST to the 12:04 KIN2 addendum (coordinator 18:24: ACC+SHAPE passed in the full ensemble, so the
+reference that matters is +ACC+SHAPE; written before any KIN2 training or scoring): one more KIN2 variant +ACC+SHAPE+KIN2
+(223 + 26 = 249 columns; ds = ds_both X + the same 26 KIN2 columns), models nf_<tcn|ms>_ask2_s0-2, compared against the
+scored +ACC+SHAPE triples (nf_<tcn|ms>_both_s0-2) with the same reading rule. The pre-registered +ACC+KIN2 vs +ACC
+comparison is kept unchanged. Permutation importance (TCN) on the +ACC+SHAPE+KIN2 seeds as well (KIN2 sub-groups).
+
+ADDENDUM 2026-11-13 18:24 CST (wall clock; user request via coordinator ~12:30 and 18:24; written before any INT dataset build,
+training or scoring): INT, explicit feature interactions, on top of the best feature set so far = +ACC+SHAPE (reference:
+the scored nf_<tcn|ms>_both_s0-2 triples). Same design (fold pff0, seeds 0-2, Mac MPS, same 129 degraded training files,
+PFF fold-0 / SkillCorner / Metrica dev exact numpy path, never DFL, swap test, scoring-path == builder features, numpy vs
+torch + negative control, reading rule diff >= +2 seed SE and cross wins >= 8/9). Two variants only:
+ (a) INT-hand: +ACC+SHAPE + 13 hand-picked interaction columns (code newfeat/code/nf_int.py; 236 columns), TCN and MS-TCN,
+     models nf_<tcn|ms>_int_s0-2. Inputs (NaN -> 0; every column 0 where the ball is missing = the ACC mask): g_T =
+     1 / (1 + T_d1) (0 if T has no tracked player), acc = |ACC ball_acc|, turn = ACC ball_turn, spd = base ball_speed,
+     dd = base diff_d1 clipped +-20, T_close = base H_close / A_close, lastctrl, T_c2, accmx = ACC ball_acc_mx0.4.
+     Columns: H/A_int_acc_prox = acc g_T; H/A_int_turn_prox = turn g_T; int_spd_oppclose = spd x close of the nearest
+     player of the team not owning the overall nearest player (tie: mean); int_dd_acc = dd acc (anti); int_dd_turn =
+     dd turn (anti); int_seen_spd / int_seen_acc / int_seen_turn = base ball_seen x spd / acc / turn; int_lastctrl_turn =
+     lastctrl x turn (anti); H/A_int_c2_accmx = T_c2 x accmx. No all-pairs products.
+ (b) INT-gated (TCN only): the TCN o_ls05 recipe on the +ACC+SHAPE inputs (no new columns) with its 1x1 input layer
+     replaced by x -> [inp(x) (din -> 48), g1(x) * sigmoid(g2(x)) (din -> 16 each)] concatenated to C = 64 (rank 16;
+     code newfeat/code/train_tcn_gate.py = repo train_tcn.py + opt-in cfg gate_r, numpy forward pipe/tcn_gate_cfg.py),
+     models nf_tcn_gate_s0-2.
+Verdict per variant vs +ACC+SHAPE; if neither beats it beyond seed noise, say so plainly.
+NOTE 2026-11-13 18:24 CST (bcast_sim; the pod is gone (balance ran out ~18:24 CST); written BEFORE any ball rule was scored; execution
+ subset stated now, no rule / threshold change): saved ball-rule outputs (pod mirror ~17:35 CST, all files load and are finite):
+ none / a_all / a_live complete on DFL (21) + PFF (48); a_short DFL 21 + PFF 10; a_cont DFL 16; nothing on SkillCorner / Metrica.
+ Subset: (i) complete a_short and a_cont on DFL + PFF on the Mac (same driver, CPU float64 pointer as on the pod, one driver at a
+ time; one check unit of rule none recomputed on the Mac and compared with the pod's); (ii) score the 4 ball rules vs none on
+ DFL + PFF: criterion (1) and criterion (2) restricted to DFL + PFF; (iii) only a rule meeting both there is run on SkillCorner +
+ Metrica (with none) for criterion (2) on all benches and then under pess (criterion 3) and opt; (iv) if none meets them, no
+ further ball-rule runs (pess / opt of the best summed-z rule dropped for lack of compute; said so in the report); decoder rules
+ b1 / b2 also scored on the driver baseline on DFL + PFF. c_veto is dropped. Acceptance otherwise as pre-registered.
+ADDENDUM 2026-11-13 18:25 CST (wall clock; stattn_ens extension, user request via coordinator 18:24; written BEFORE any ensemble with the
+extra members below is decoded or scored by stattn_ens. Seen beforehand: acc_ens's own report (its Stage 1 (iv) and Stage 2
+v8AS / v9AS full-set results) and stattn's skcft report; stattn_ens Part 2 tables for the shipped members). EXPLORATORY.
+Extra candidate members:
+ PART 1 (fold 0, same benches / seeds / decoder / reading rule as above): STft = stattn SkillCorner fine-tune st_s<k>_skcft_f0
+  (PFF fold 0 from the pff0s model; SkillCorner = its CV models, each game held out, i.e. it has seen 15 other SKC games, unlike
+  the other fold-0 SKC members; Metrica dev from pff0s); TCNas / MSas = acc_ens Stage-1 ACC+SHAPE fold-0 members
+  nf_tcn_both_s<k> / nf_ms_both_s<k>. Families are mutually exclusive (a model and its own retrained variant are not put in
+  one ensemble): TCN family {-, TCN, TCNas}, MS-TCN {-, MSTCN, MSas}, radar {-, radar}, pointer {-, pointer}, attention
+  {-, ST, STft} -> 3 x 3 x 2 x 2 x 3 - 1 = 107 subsets (the 31 already run included). Same baseline {TCN, MSTCN, radar,
+  pointer}; member order TCN-family, MS-family, radar, pointer, attention. All 255 subsets of the 8 models were not run
+  (cost ~3 h more CPU for combinations of a model with its own variant).
+ PART 2 (full benchmarks, as above): TCN family {-, TTA-TCN, TCN-AS (acc_ens tcn_tta; PFF = tcn_plain, as the shipped TCN uses
+  o_ls05 on PFF)}, MS-TCN {-, skcft, skcft_metft, AS-skcft, AS-metft (acc_ens ms_skcft / ms_metft)}, radar, pointer ->
+  3 x 5 x 2 x 2 - 1 = 59 subsets (23 already run). Outputs read from pod_rescue/root/acc_ens/mw/probs/accens (pod numpy path;
+  acc_ens checked it against the Mac path: 0 code differences). Check first: v9AS = {TCN-AS, AS-metft, radar, pointer} must
+  reproduce 0.8069 / 0.7661 / 0.6322 / 0.8283 and v8AS 0.7928 / 0.7651 / 0.6326 / 0.8301 (Metrica / DFL / SKC / PFF); stop if not.
+  Comparisons vs v9 (shipped) AND vs v9AS; Part 2 reading rule unchanged. No stattn in Part 2 (no full-bench stattn outputs).
+ Ranked tables as before (mean of bench spell F1s). Best-of-107 / best-of-59 is a selection on these benchmarks; only differences
+ beyond the fixed rules count, and even those are exploratory. Mac CPU only, <= 2 processes < 6 GB.
+ADDENDUM 2026-11-13 18:28 CST (wall clock; stattn_ens, coordinator request; written BEFORE any ensemble with this member is decoded or scored;
+seen beforehand: its single-model scores as quoted by the coordinator, 0.7954 PFF f0 / 0.6554 SKC CV / 0.7951 Metrica LOGO strict).
+Extra Part 1 member MSA = flagseed (P) control run A "noflag_nat" (MS-TCN m5c_C192ls from scratch on fold pff0 + SkillCorner +
+Metrica, seeds 0-2; flag variants B / D NOT used), as a 4th option of the MS-TCN family: MS {-, MSTCN, MSas, MSA} -> 36 more
+subsets (143 in all). Leak-free outputs only, flagseed's pairing: seed s has models j0-j3; PFF fold-0 game = all four (none saw any
+PFF fold-0 game); SkillCorner game = the model of its CV fold (saw the 15 other SKC games); Metrica G1 = j0 and j3, G2 = j1
+(LOGO: each saw the other two Metrica games). Train-game lists of all 12 model files checked against all 228 scored files: no leak.
+With several leak-free models for a unit, the ensemble is decoded once per model and the unit's metrics are the mean (flagseed's
+convention for this run). Benches as my other rows (PFF fold-0 12, SkillCorner 20, Metrica Sample Games 1, 2 x 2027 / 2028 strict),
+BUT: MSA's Metrica outputs come from LOGO models that trained on Metrica (the other members never did), and its SkillCorner outputs
+from CV models that trained on SkillCorner (only STft is comparable there). Metrica G3 is not scored (no fold-0 outputs of the
+other members on G3). Primary question: {TCN, MSA, radar, pointer} vs the baseline (MS-TCN slot replaced), same reading rule.
+ADDENDUM 2026-11-13 18:32 CST (wall clock; "v11" = new-feature members + stacker, user request via coordinator; written BEFORE the stacker
+below is fitted and before any ensemble containing it is decoded or scored. Seen beforehand: acc_ens report / tables2 (v9AS
+0.8069 / 0.7661 / 0.6322 / 0.8283 vs v9 0.7976 / 0.7590 / 0.6270 / 0.8227, Metrica strict / DFL / SKC / PFF) and stack_ext report
+(E3 0.8089 / 0.7641 / 0.6294 / 0.8282). All four benches were used before by both parents; this is a confirmation of a combination,
+not a fresh test.)
+Variant "v11" (one variant, nothing tuned): member set = v9's with TCN -> acc_ens tcn_as (TTA4 + all_a50 on Metrica / DFL / SKC,
+ plain on PFF, as the references) and MS-TCN -> acc_ens ms_as_skcft_metft; radar_pff and pointer r5_ptr_ballc_p20M unchanged;
+ plus a fifth MBR member = stacker with the S2 recipe unchanged (stack_aug / stack_ext: 84 inputs = 4 members x 7 offsets
+ (-50, -25, -10, 0, +10, +25, +50 frames, clamped inside the block) x (H, A, D); rows = Metrica strict-labelled frames t % 5 == 0
+ inside blocks, seeds 2027 + 2028, swap copy; LightGBM 200 trees, depth 4, lr 0.05, seed 0, deterministic), retrained on THESE four
+ members' outputs. Decoder fixed: hmm, alpha 0.1, rho 0.2, margin 0, every unit.
+Leak-free protocol (= stack_ext E3): Metrica scored leave-one-game-out (stacker fitted on the other two games; the MS-TCN's
+ Metrica outputs come from its fold_met_k model for game k, in training rows and in scored rows alike); DFL / SKC / PFF scored by
+ the stacker fitted on all three Metrica games, fed member outputs from the DFL LOGO / SKC-CV / PFF-fold models that never saw the
+ scored game. New-member outputs = the rescued pod numpy outputs (pod_rescue/root/acc_ens/mw/probs/accens), all 95 units.
+Checks before reading: this code refits E3 (v9 members) and must equal stack_ext's saved E3 outputs (codes identical); v9, v9AS,
+ E3 must reproduce the numbers above exactly; stop if not.
+Table: v9, v9AS (v9 + new members, no stacker), E3, v11 on Metrica strict (3 games x 2 seeds, game means) / DFL fine4 (21 units)
+ / SKC fine3 (20) / PFF fine3 (48); paired diffs +- game-level SE (Metrica SE over 3 games, DFL over 7 games) with win counts;
+ macroF1; possessions per 90.
+Rule: v11 is "better" only if, against v9AS AND against E3 (each separately), it wins on at least one of DFL / PFF by >= 2
+ game-level SE and loses on no bench (Metrica, DFL, SKC, PFF) by more than 1 SE. Otherwise the stacker "adds nothing on top of
+ the new members" is reported plainly and the candidate to build is v9AS without the stacker. Mac CPU only, <= 2 processes.
+
+ADDENDUM 2026-11-13 19:20 CST (wall clock; user approval via coordinator of the third ACC variant; written BEFORE any of
+these models is trained or scored). EXPLORATORY "stattn +PACC" (per-player acceleration in the player tokens); no submission change.
+ Change vs plain stattn (st_s<k>): each player token gets 3 more features (FS 10 -> 13), everything else identical (frame
+  token = the 194 nn_pff columns + xf 14, NOT the ACC summary columns): ax, ay = the player's acceleration in the attack frame
+  and |a|, from the SAME full-rate velocity the token's vx, vy come from (radar_common.prepare: frame difference x 25,
+  > 12 m/s -> NaN, centred 5-frame NaN-aware mean), a[t] = (v[t+5] - v[t-5]) / 0.4 s (h = 0.2 s, as newfeat's player
+  acceleration and ballc's ball acceleration), times the attack sign; scaled / 5 m/s^2 and clipped to +-3 (|a| to [0, 3]);
+  0 where undefined (NaN) or the token is padding. Team swap negates ax, ay (as vx, vy); |a| unchanged.
+ Training: train_st.py recipe unchanged (lr 3e-4, 8000 it, batch 64 x crop 96, AdamW wd 0.01, warm-up + cosine, losses,
+  sampling, swap p 0.5), seeds 0, 1, 2 (= plain stattn's), fold pff0, on the Mac GPU (MPS; the cloud pod is gone).
+  Device deviation stated now: plain stattn was trained on CUDA with bf16 autocast; here MPS. To fit memory on the 48 GB Mac
+  (one MPS process machine-wide, behind newfeat's queue), each batch of 64 crops is processed as 4 micro-batches of 16 with
+  gradient accumulation (same sampled crops per iteration; the loss is the mean of the 4 micro-batch losses), and autocast
+  bf16 on MPS if it runs (else fp32; recorded). So a difference vs plain stattn mixes the feature with the device / numerics;
+  stated with the result. Scoring on MPS (fp32), pipeline_st.py with the 3 extra features, same windows / decoder.
+ Plan: seed 0 first, timed (training + scoring). If one seed takes more than ~2.5 h, stop after it and report the single-seed
+  numbers as an indication only; otherwise seeds 1 and 2 too. Reading rule = the 09:50 / 12:00 rule vs plain stattn
+  (>= 2 seed SE and >= 8/9 cross-seed wins) on PFF fold 0 / SkillCorner / Metrica dev; diagnostics: team accuracy on both-alive
+  frames, H<->A swap share, D-class F1, possessions / 90.
+ Checks: (i) the first 10 token features equal the stored stattn inputs (bit-identical); (ii) home/away swap: inputs of the
+  swapped game (slot_team -> 1 - slot_team, sign -> -sign) == swap(inputs) on all 13 features; (iii) negative control on the
+  first PFF fold-0 game: ax, ay -> 0 and |a| -> its training mean must change the outputs.
+
+ADDENDUM 2026-11-13 20:52 CST (wall clock; user instruction via coordinator, verbatim: "if a feature improves across 2
+benchamrks, esp metrica, include it"; ADOPTED AFTER the REL results (both families) and the KIN2 TCN result on top of
+ACC+SHAPE were seen; written before any new training for v12). Inclusion rule for the newfeat groups, replacing the
+coordinator's earlier "a SkillCorner loss keeps it out": a feature group qualifies for a member (TCN or MS-TCN) if, on top
+of the reference set, it gains beyond seed noise (diff of 3-seed means >= +2 seed SE and cross-seed wins >= 8/9) on at least
+2 of the 3 dev benches (PFF fold-0, SkillCorner, Metrica dev), Metrica preferably one of them; a loss on the third bench does
+not exclude it. Coordinator's reading of the results so far: REL qualifies (TCN and MS-TCN), KIN2 qualifies for the TCN;
+KIN2 MS-TCN and INT are decided by the pending scores under this rule. Recorded precisely: on top of +ACC+SHAPE, REL TCN
+passes on PFF (+3.7 SE, 9/9) and Metrica (+3.2, 9/9); REL MS-TCN passes on Metrica (+7.7, 9/9) and is short on PFF (+1.7 SE,
+8/9; vs base it passes PFF +10.6 / Metrica +8.6) - it is included on the coordinator's reading. KIN2 TCN on top of +ACC+SHAPE
+passes PFF (+8.2, 9/9) and Metrica (+11.7, 9/9). Both lose SkillCorner beyond noise for the TCN (REL -6.6 SE, KIN2 -12.0 SE).
+The v12 members (ACC+SHAPE + every qualifying group per member, v11's recipes and fold structure) are then built; a quick
+joint dev check of the combined set is reported but does not gate the build unless clearly worse than ACC+SHAPE on 2 benches.

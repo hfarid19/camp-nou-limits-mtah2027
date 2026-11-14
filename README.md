@@ -5,11 +5,14 @@
 >
 > ```bash
 > pip install -r requirements-submission.txt
-> python make_submission.py        # -> evaluation/results/camp_nou_limits.csv (byte-identical)
+> python make_submission.py        # -> evaluation/results/camp_nou_limits.csv
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/final_f4spm`](candidates/final_f4spm/README.md) (v9: v8, [`candidates/final_f4sp`](candidates/final_f4sp/README.md), with its MS-TCN also fine-tuned on Metrica's sample games). It runs
+> The submission is [`candidates/final_v11`](candidates/final_v11/README.md) (v11). It is v9 ([`candidates/final_f4spm`](candidates/final_f4spm/README.md): v8, [`candidates/final_f4sp`](candidates/final_f4sp/README.md), with its MS-TCN also fine-tuned on Metrica's sample games)
+> with two changes: the TCN and the MS-TCN are retrained on 29 extra input columns (ball and player acceleration, ball turn angle,
+> team-shape features; [`acc_shape`](candidates/acc_shape)), and a LightGBM stacker trained on Metrica's three sample games
+> ([`stacker_met`](candidates/stacker_met/README.md)) joins the decode as a fifth member. It runs
 > four models trained only on open tracking of other games (DFL / IDSSE Bundesliga, CC BY 4.0; PFF FC's
 > free 2022 World Cup data; and, for one model, SkillCorner's A-League open data, MIT, © SkillCorner,
 > released with PySport, and Metrica Sports' three open sample games; credits and licence notices in [TECHNICAL.md, section 7](TECHNICAL.md#7-data-sources)):
@@ -18,12 +21,15 @@
 > a wide MS-TCN fine-tuned with the SkillCorner games and then the Metrica sample games added ([`nn_pff`](candidates/nn_pff/README.md)),
 > a ball radar ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer
 > network with 19.3M parameters ([`nn_pointer`](candidates/nn_pointer)). The pointer's forward pass runs in
-> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel), and the run takes
-> 2-10 minutes on one thread of an Apple M5 Max, depending on its load; without torch the pointer falls back to numpy,
-> which for v8 gave the same file in about an hour (54 minutes on a heavily shared Apple M5 Max; not re-run for v9). Their outputs are combined by expected-spellF1 decoding
+> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel), and the run of v11 took
+> 9-11 minutes on one thread of a busy Apple M5 Max, with a peak of 5.9 GB of memory; without torch the pointer falls back to numpy,
+> which for v8 gave the same file in about an hour (54 minutes on a heavily shared Apple M5 Max; not re-run for v9 or v11).
+> Checked so far for v11: two runs on macOS arm64 through two drivers wrote the same file (sha256 `9ba4f14d…586938`); the Linux,
+> fresh-clone and emulated x86-64 checks were done for v9 and are pending for v11. <!-- TODO final check -->
+> The four models' outputs and the stacker's are combined by expected-spellF1 decoding
 > ([`mbr_decode`](candidates/mbr_decode/README.md)) around the members' vote under the challenge's
 > controlled-possession rule, followed by dead ball before each kick-off. It uses no labels from the
-> provided game. It replaced [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b", v7);
+> provided game. v8 replaced [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b", v7);
 > our earlier frozen submission, [`candidates/ensemble_ctrl_v6`](candidates/ensemble_ctrl_v6/README.md),
 > is the reference that both were compared against. The approach is described in [TECHNICAL.md](TECHNICAL.md); the benches and
 > every result are in [`candidates/README.md`](candidates/README.md); candidates we built and dropped

@@ -1,11 +1,13 @@
 # Candidates and the bench
 
 Every possession pipeline we built sits behind one interface (`predict`, plus `predict_proba`
-for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `final_f4sp` (F4sP,
-submission v8, see its README) and the folders it needs (`mbr_decode`, `adapt`, `nn_pointer`,
+for the ensemble) and is scored by one shared bench, `bench.py`. Shipped: `final_v11` (submission v11:
+v9 with the TCN and MS-TCN retrained on 29 extra input columns, plus a Metrica-trained stacker as a fifth decode member; see
+its README) and the folders it needs (`acc_shape`, `stacker_met`, `mbr_decode`, `adapt`, `nn_pointer`,
 `nn_pff`, `nn_pff_tcn`, `ball_radar_pff`, `ensemble_ctrl_v6`, `learned_dfl_evidence`). Earlier
-submissions, in order: `ensemble_ctrl_v2`, `v4`, `v5c`, `v6`, `final_f4b` (F4b, v7); the sections below are the history up to round 2, and
-rounds 3-5 are summarised in `../TECHNICAL.md`, section 6. Built and dropped: `archive/` (see its README). Analyses:
+submissions, in order: `ensemble_ctrl_v2`, `v4`, `v5c`, `v6`, `final_f4b` (F4b, v7), `final_f4sp` (F4sP, v8), `final_f4spm`
+(v9). `final_f4sps` (v10: v8 plus a stacker) was a candidate and never the submission; the sections below are the history up to round 2, and
+rounds 3-5 are summarised in `../TECHNICAL.md`, section 3. Built and dropped: `archive/` (see its README). Analyses:
 `stats_report/` (statistical tests), `control_events/` (event-defined control labels).
 
 ## Benches
