@@ -1089,3 +1089,102 @@ passes on PFF (+3.7 SE, 9/9) and Metrica (+3.2, 9/9); REL MS-TCN passes on Metri
 passes PFF (+8.2, 9/9) and Metrica (+11.7, 9/9). Both lose SkillCorner beyond noise for the TCN (REL -6.6 SE, KIN2 -12.0 SE).
 The v12 members (ACC+SHAPE + every qualifying group per member, v11's recipes and fold structure) are then built; a quick
 joint dev check of the combined set is reported but does not gate the build unless clearly worse than ACC+SHAPE on 2 benches.
+ADDENDUM 2026-11-14 01:18 CST (wall clock; stattn_ens control checks, coordinator request; written BEFORE any of these ensembles is decoded;
+seen beforehand: st_pacc_s0's single-model scores in stattn/tables_pacc.md). EXPLORATORY. Part 1 benches / decoder / scorers /
+reading rule unchanged (PFF f0, SkillCorner, Metrica dev strict; >= 2 seed SE and >= 8/9 cross-seed wins). Refs: B = {TCN, MSTCN,
+radar, pointer}, BAS = {TCNas, MSas, radar, pointer}; seed s = seed s of each family.
+Check 1 (pointer twice): ref_s + ST_s (existing) vs ref_s + P2, P2 in the 5th slot = pointer seed (s+1) mod 3 (PRIMARY) and
+ the identical pointer_s duplicated (SECONDARY). Per bench: diff of 3-seed means +- seed SE, z, cross-seed wins of 9.
+Check 2 (stattn +PACC, seed 0 only, MPS-scored): ref_s + st_pacc_s0 for s = 0, 1, 2 vs ref_s, vs ref_s + ST_s (and per ST seed),
+ vs ref_s + P2 (primary). Its seed SE only covers the ref members' seed noise, not the +PACC model's own (one seed): stated as
+ a limit, no verdict beyond "indicative".
+Verdict asked: does ref + attention (plain; +PACC) beat ref + pointer2 on >= 2 of 3 benches by the rule?
+One CPU process, nice 10, < 6 GB, no MPS.
+
+ADDENDUM 2026-11-14 01:19 CST (wall clock; coordinator request 01:10 CST; written BEFORE the v12 stacker is fitted and before any
+v12 ensemble is decoded or scored): "v12" bench. Members: v11's set with the TCN and MS-TCN replaced by the v12 members
+(candidates/newfeat_v12: both read 281 inputs = repo features + ACC + SHAPE + REL + KIN2 + INT-hand; v11's recipes and fold
+structure: TCN o_ls05 + tta4 / all_a50 (plain on PFF, as v11), MS-TCN m5c_C192ls -> SkillCorner fine-tune -> Metrica
+fine-tune), radar and pointer = v9's, decoder hmm alpha 0.1 rho 0.2 margin 0 and prekick dead as v11. Stacker: the S2 recipe
+(LightGBM 200 trees per class, depth 4, lr 0.05, 84 inputs: the four members' probabilities at 7 offsets) refitted on the
+v12 members' outputs, Metrica only (leave one Metrica game out for the Metrica units; all 3 games for DFL / SkillCorner /
+PFF), code newfeat/v12/code/v12_bench.py = v11/code/v11.py with only the member sources changed. Benches as v11: Metrica
+strict LOGO (3 games x 2 seeds), DFL fine4 (21 units, LOGO fold models), SkillCorner fine3 (20, CV fold models), PFF fine3
+(48, fold models); every model that scores a game never saw it. Reported: v12 (5 members), v12m4 (the 4 v12 members, no
+stacker), v11's scores of record (0.8155 / 0.7673 / 0.6335 / 0.8319), paired differences v12 - v11, v12m4 - v11, v12 -
+v12m4 with game-level SE and games won per bench, macroF1, possessions per 90. NO decision rule is applied: the choice
+between v11 and v12 is the user's. Caveats stated in advance: the v12 feature groups were selected on PFF fold 0 /
+SkillCorner / Metrica dev (the inclusion rule of 2026-11-13 20:52 was adopted after those results were seen), so these
+benches are not untouched; every group lost SkillCorner beyond noise for the TCN alone; the match's ball statistics
+resemble the SkillCorner bench (dist_match.md). Then one run of candidates/final_v12 (copy of final_v11 pointing at
+newfeat_v12 and the refitted stacker) on the match: sha256, possessions, dead share, agreement with v11, run time, peak RSS;
+CSV under $MTAH_WORK, never under evaluation/.
+ADDENDUM 2026-11-14 01:25 CST (wall clock; stattn_ens "ptr2" follow-up, coordinator request; written BEFORE any of these ensembles is decoded;
+seen beforehand: the dev-bench control (tables_ctl.md: pointer twice +0.008 PFF / +0.007 Metrica over B) and v11's report).
+EXPLORATORY; does not change the submission. Full benches as v11 was benched: Metrica strict LOGO (3 games x 2 seeds), DFL 21
+(LOGO), SkillCorner 20 (CV), PFF 48 (fold models); fixed decode hmm, alpha 0.1, rho 0.2, margin 0; saved member outputs (ACC+SHAPE
+TCN tta, ACC+SHAPE MS-TCN metft, radar_pff, pointer p20M) + v11 stacker S2n (probs/v11/S2n), via arch/r5_arch/v11/code/v11.py's
+loaders imported unchanged. First: v11 must reproduce 0.8155 / 0.7673 / 0.6335 / 0.8319 (Metrica / DFL / SKC / PFF) and v9AS
+0.8069 / 0.7661 / 0.6322 / 0.8283; stop if not. Duplicates are appended at the end of v11's member list [TCN, MS, radar, pointer,
+stacker]; the stacker is unchanged (trained on single-copy inputs; only the decode's member list changes).
+ (a) v11 + pointer again (6 members; identical copy, no second full-bench pointer seed exists) vs v11;
+ (b) v9AS + pointer again vs v9AS; (c) v11 + pointer twice more (pointer x3) vs v11 (monotone?);
+ (d) specificity: v11 + one more copy of TCN / MS-TCN / radar / stacker, each vs v11.
+Reported per bench: paired diff +- game-level SE (stack_ext data.paired: Metrica over 3 game means, DFL over 7 game means with
+wins over 21 units, SKC / PFF over games), wins, z; possessions / 90. Reading: "(a) beats v11" only if it gains by >= 2 SE on at
+least 2 benches and loses by > 2 SE on none (Metrica included, but its SE has 2 df). 7 comparisons x 4 benches = 28 tests:
+expect ~1 spurious 2-SE result by chance. One CPU process, nice 10, < 6 GB, no MPS.
+ADDENDUM 2026-11-14 01:36 CST (wall clock; stattn_ens ptr2 follow-up, coordinator request; written BEFORE decoding): (e) v11 + one more copy of the
+pointer AND of the stacker (7 members: [TCN, MS, radar, pointer, stacker, pointer, stacker]) vs v11 and vs (a); same benches,
+decode, SE and reading as the 01:25 ptr2 addendum (+8 tests; 40 bench-level tests in ptr2 overall). One CPU process, nice 10.
+
+ADDENDUM 2026-11-14 01:46 CST (wall clock; user instruction via coordinator; written before any fitting, data build, training or
+scoring of this track): "BALLNOISE", does training on a match-like ball recover the SkillCorner loss of the ball features?
+(exploratory dev track; v12 unaffected). Motivation (label-free, dist_match.md): the training degradation's ball has
+33.5 touches/min, ball_jerk median 3.17, ball_turn q95 0.79; the match 15.7 / 2.61 / 0.52; SkillCorner bench 14.9 / 2.68 /
+0.49; Metrica bench 47.2 / 3.39 / 0.77.
+Step 1 (fit, label-free, positions only, local): the training ball = degrade_v2 smoothing (ball_smooth_frames drawn from
+{1, 3, 5}) + an AR(1) offset (tau 1 s, sd drawn U(0, 0.5) m) on the provider ball, hidden frames as degrade_v2. A grid over
+ball_smooth_frames {1, 3, 5, 7} x ball_offset_sd {0, 0.02, 0.05, 0.1, 0.2, 0.3} m is applied to the clean balls of 6
+training games (4 PFF + 2 DFL, fold-0 games excluded), and the setting whose label-free statistics (touches/min, ball_jerk
+median, ball_turn q50 / q95, ball_acc q5 / q95, ball_turn_mx1 q50; each standardised by the spread across the grid) are
+closest to the match's (sum of squared standardised differences) is the "match-like ball". Reported next to the match.
+Step 2 (data, fold pff0 only, the 129 TCN training files of ds_pff2 = 43 games x seeds 41-43): players, hidden-ball frames,
+labels and idx UNCHANGED (taken from the existing degraded files); only the visible ball is regenerated from the provider
+ball with the match-like setting (same AR rng per file). MATCH = every file match-like; MIX = per file match-like if
+(game index + seed) is even, else the current file unchanged. All base + new columns recomputed by the same code (v12
+feature modules); benches unchanged.
+Step 3: TCN o_ls05 recipe, Mac MPS, spec pff0, seeds 0-2, for {MATCH, MIX} x {ACC+SHAPE (223), v12 (281)}; "current" =
+the existing triples (nf_tcn_both_s0-2; nf_tcn_v12a_s0-2). Scored PFF fold-0 / SkillCorner / Metrica dev as the dev checks.
+Reported per column set: variant minus current (diff of 3-seed means, seed SE, z, cross wins of 9).
+Reading rule (fixed now): the track is worth a full build only if a variant recovers SkillCorner - v12 columns at that
+variant no longer lose to ACC+SHAPE-current on SkillCorner (diff >= -1 seed SE), or ACC+SHAPE at that variant gains on
+SkillCorner over ACC+SHAPE-current by >= 2 seed SE - AND that variant does not lose PFF or Metrica beyond noise (no diff
+<= -2 seed SE vs current of the same column set). No full build without the coordinator's go.
+
+DEVIATION 2026-11-14 01:53 CST to the 01:46 BALLNOISE addendum (written after the step-1 grid, before any step-2 data build or
+training): the pre-registered distance selected k 7, sd 0.20 (touches 30.5/min, turn q95 0.757, turn_mx1 q50 0.654 - not
+match-like) because ball_acc q5 / q95 are not moved by the grid (spread across the 24 settings 0.20 / 0.49 m/s^2 against a
+grid-to-match gap of +2.7 / -5.0) and their standardised gaps dominated the sum. Those two statistics are dropped (a
+property of the provider balls, not of these knobs); on the other five (touches, jerk q50, turn q50 / q95, turn_mx1 q50)
+the closest setting is ball_smooth_frames 7, ball_offset_sd 0.05 m (touches 18.6, jerk 2.08, turn 0.014 / 0.517,
+turn_mx1 0.283; match 15.7 / 2.61 / 0.035 / 0.521 / 0.331; current training 29.6 / 2.97 / 0.046 / 0.780 / 0.619). This is
+the match-like ball used in steps 2-3. Everything else unchanged.
+ADDENDUM 2026-11-14 02:18 CST (wall clock; stattn_ens ptr2 on v12, coordinator request; written BEFORE decoding; seen beforehand: v12's bench
+report and the v11 ptr2 results). Decode-only weight test on v12 (4 v12 members + refitted stacker S2v12; loaders of
+newfeat/v12/code/v12_bench.py imported unchanged), full benches, fixed decode hmm a0.1 r0.2 m0. First reproduce v12 0.8197 /
+0.7735 / 0.6333 / 0.8413 (Metrica / DFL / SKC / PFF); stop if not. Candidates (copies appended to [TCN, MS, radar, pointer,
+stacker]): v12a = + pointer; v12e = + pointer + stacker; v12s = + stacker. Each vs v12 and vs v11 (v11 = res_ptr2/v11.pkl,
+reproduced 01:26): paired diff +- game-level SE, wins, z; possessions / 90. Same reading as ptr2 (beats = >= 2 SE gain on >= 2
+benches, no > 2 SE loss). 6 comparisons x 4 benches = 24 more tests. One CPU process, nice 10, < 6 GB, no MPS.
+NOTE 2026-11-14 03:27 CST (bcast_sim; execution per NOTE 13 Nov 18:24, written before any follow-up is scored): on DFL + PFF the ball rules
+ give a_all / a_live / a_short: no criterion (1) for either ensemble; a_cont v10: no; a_cont v9: DFL +0.0002 +- 0.0001 (z +2.4,
+ 6W / 2L / 13 ties of 21), PFF +0.0001 +- 0.0002 -> meets (1) and (2) on DFL + PFF. As pre-stated, a_cont (v9 only) is now run on
+ SkillCorner + Metrica (with none) for (2) on all benches, then under pess (criterion 3) and opt on all four benches, with v9's
+ four members only (the v8 MS-TCN is not needed for v9). Baseline 'none' does not depend on the simulator variant (the ball is
+ unchanged), so none_main is the baseline for pess / opt. If (2) fails on SkillCorner or Metrica, pess / opt are not run.
+ Stated now: the DFL gain is +0.0002 spellF1 from a rule that changes ~1-2 s of ball per 90 min on these benches; a pass would
+ still be one selection among 14 comparisons.
+RESULT 2026-11-14 05:26 CST (bcast_sim): a_cont v9 on all benches: DFL +0.000229 +- 0.000094 (z +2.43), PFF +0.000077 +- 0.000222, SkillCorner
+ -0.000455 +- 0.000437 (z -1.04, 2W / 9L), Metrica strict +0.000481 +- 0.000652 -> criterion (2) fails (SkillCorner < -1 SE).
+ No rule is "worth shipping"; pess / opt not run (no rule reached them); no candidate folder.

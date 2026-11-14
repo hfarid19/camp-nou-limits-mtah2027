@@ -9,10 +9,13 @@
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/final_v11`](candidates/final_v11/README.md) (v11). It is v9 ([`candidates/final_f4spm`](candidates/final_f4spm/README.md): v8, [`candidates/final_f4sp`](candidates/final_f4sp/README.md), with its MS-TCN also fine-tuned on Metrica's sample games)
+> The submission is [`candidates/final_v12`](candidates/final_v12/README.md) (v12). It is v11 ([`candidates/final_v11`](candidates/final_v11/README.md), published on 14 Nov and then replaced) with the TCN and the MS-TCN
+> retrained on 87 extra input columns instead of 29 ([`newfeat_v12`](candidates/newfeat_v12)) and the stacker refitted on them. v11 itself is v9
+> ([`candidates/final_f4spm`](candidates/final_f4spm/README.md): v8, [`candidates/final_f4sp`](candidates/final_f4sp/README.md), with its MS-TCN also fine-tuned on Metrica's sample games)
 > with two changes: the TCN and the MS-TCN are retrained on 29 extra input columns (ball and player acceleration, ball turn angle,
 > team-shape features; [`acc_shape`](candidates/acc_shape)), and a LightGBM stacker trained on Metrica's three sample games
-> ([`stacker_met`](candidates/stacker_met/README.md)) joins the decode as a fifth member. It runs
+> ([`stacker_met`](candidates/stacker_met/README.md)) joins the decode as a fifth member. v12 adds 58 more columns: relative
+> movement of the ball and the nearest players, detected touches, finer ball kinematics and hand-picked products. It runs
 > four models trained only on open tracking of other games (DFL / IDSSE Bundesliga, CC BY 4.0; PFF FC's
 > free 2022 World Cup data; and, for one model, SkillCorner's A-League open data, MIT, © SkillCorner,
 > released with PySport, and Metrica Sports' three open sample games; credits and licence notices in [TECHNICAL.md, section 7](TECHNICAL.md#7-data-sources)):
@@ -21,11 +24,11 @@
 > a wide MS-TCN fine-tuned with the SkillCorner games and then the Metrica sample games added ([`nn_pff`](candidates/nn_pff/README.md)),
 > a ball radar ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer
 > network with 19.3M parameters ([`nn_pointer`](candidates/nn_pointer)). The pointer's forward pass runs in
-> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel), and the run of v11 took
-> 9-11 minutes on one thread of a busy Apple M5 Max, with a peak of 5.9 GB of memory; without torch the pointer falls back to numpy,
-> which for v8 gave the same file in about an hour (54 minutes on a heavily shared Apple M5 Max; not re-run for v9 or v11).
-> Checked so far for v11: two runs on macOS arm64 through two drivers wrote the same file (sha256 `9ba4f14d…586938`); the Linux,
-> fresh-clone and emulated x86-64 checks were done for v9 and are pending for v11. <!-- TODO final check -->
+> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel), and the run of v12 took
+> about 4.5 minutes on one thread of a shared Apple M5 Max, with a peak of 6 GB of memory in the main process; without torch the pointer falls back to numpy,
+> which for v12 gave the same file in about 20 minutes.
+> Checked for v12 on 14 Nov, each run writing the same file (sha256 `eb249aa5…5d849f`): `make_submission.py` twice on macOS arm64, runs with 1, 2 and 8 threads,
+> a fresh clone, a Linux arm64 container and a Linux x86-64 container under emulation. Native x86-64 hardware was not tested.
 > The four models' outputs and the stacker's are combined by expected-spellF1 decoding
 > ([`mbr_decode`](candidates/mbr_decode/README.md)) around the members' vote under the challenge's
 > controlled-possession rule, followed by dead ball before each kick-off. It uses no labels from the
@@ -221,7 +224,7 @@ competition only, under the terms you accept at enrolment.
 
 Camp Nou Limits' models were trained on third-party open data (DFL / IDSSE, PFF FC, SkillCorner);
 their credits and licence notices, including SkillCorner's MIT notice, are in
-[TECHNICAL.md, section 4](TECHNICAL.md#4-training-data).
+[TECHNICAL.md, section 7](TECHNICAL.md#7-data-sources).
 
 ```bibtex
 @misc{mtah2027,

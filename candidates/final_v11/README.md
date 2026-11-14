@@ -1,5 +1,7 @@
 # final_v11: submission v11 (new-feature members + stacker)
 
+**Superseded.** v11 was published on 14 Nov 2026 and then replaced by v12 (`../final_v12`), which is now the submission.
+
 `pipeline.py` is v9 (`../final_f4spm`) with two changes. The first passed its rule on its own. The second (variant E3 of
 "stack_ext") was ahead of v9 on all four benches but did not pass the rule of its own addendum, which compared it with
 v10's stacker; the combination then passed the rule of the "v11" addendum (see Evidence):
@@ -16,12 +18,12 @@ ball before each half's kick-off are v9's. Pre-registration: `../../docs/prereg/
 addendum of 13 Nov 2026 18:32 CST ("v11"); the two parents are the addenda of 11:59 ("acc_ens") and 10:30
 ("stack_ext", variant E3).
 
-**Status: the intended submission since 13 Nov 2026 (the user's choice).** `make_submission.py` runs it by default
-(`DEFAULT_CANDIDATE = "final_v11"`). The checks listed under "Deferred checks" have not been run yet. <!-- TODO final check -->
+**Status: the intended submission from 13 Nov 2026 (the user's choice) until v12 replaced it on 14 Nov.**
+`make_submission.py` now runs v12 by default; v11 runs with `--candidate final_v11 --out <path>.csv`. The checks
+listed under "Deferred checks" were never run for v11, because v12 replaced it before they were due.
 
 ```sh
-python make_submission.py                                           # writes evaluation/results/camp_nou_limits.csv
-python make_submission.py --candidate final_v11 --out <path>.csv   # the same pipeline, to another path
+python make_submission.py --candidate final_v11 --out <path>.csv   # v11 (the default is now final_v12)
 ```
 
 | slot | member file | what it is | weights |

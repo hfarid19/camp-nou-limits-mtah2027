@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
-"""Write Camp Nou Limits' submission CSV: candidates/final_v11 (v11).
+"""Write Camp Nou Limits' submission CSV: candidates/final_v12 (v12).
 
     pip install -r requirements-submission.txt
     python make_submission.py                    # writes evaluation/results/camp_nou_limits.csv
     python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 
 Reads only the competition input (ATD meta + raw tracking, Smart Tagging) through games.py and
-possession_pipeline's readers, runs candidates/final_v11/pipeline.predict once and writes
-frame,label rows. v11 is v9 (candidates/final_f4spm) with two changes: its TCN and MS-TCN are
-retrained on 29 extra input columns, and a stacker joins the decode as a fifth member. The four
-models were each trained on the 7 DFL + 48 PFF World Cup 2022 games (the MS-TCN also on the 20
-SkillCorner A-League games and the 3 Metrica sample games); the stacker was trained on the 3 Metrica
-sample games only:
-  - the label-smoothed TCN on 223 inputs (the 194 repository features + the 29 columns of
-    candidates/acc_shape/nf_features.py: ball and player acceleration, ball turn angle, team-shape
-    hull features), averaged over the input and 4 jittered copies of it, with its feature
-    normalisation moved half-way towards the match's own label-free feature statistics
-    (candidates/acc_shape/member_tcn_as_tta4_a50.py, tcn_as.npz);
-  - the MS-TCN at width 192 with label smoothing on the same 223 inputs, fine-tuned with the 20
+possession_pipeline's readers, runs candidates/final_v12/pipeline.predict once and writes
+frame,label rows. v12 is v11 (candidates/final_v11) with its TCN and MS-TCN retrained on 58 more
+input columns and its stacker refitted on them; v11 is v9 (candidates/final_f4spm) with the TCN and
+MS-TCN retrained on 29 extra input columns and a stacker as a fifth decode member. The four models
+were each trained on the 7 DFL + 48 PFF World Cup 2022 games (the MS-TCN also on the 20 SkillCorner
+A-League games and the 3 Metrica sample games); the stacker was trained on the 3 Metrica sample games
+only:
+  - the label-smoothed TCN on 281 inputs (the 194 repository features + the 87 columns of
+    candidates/newfeat_v12: v11's ball and player acceleration, ball turn angle and team-shape hull
+    columns, plus relative movement of the ball and the nearest players, detected touches, finer ball
+    kinematics and hand-picked products), averaged over the input and 4 jittered copies of it, with
+    its feature normalisation moved half-way towards the match's own label-free feature statistics
+    (candidates/newfeat_v12/member_tcn_v12_tta4_a50.py, tcn_v12.npz);
+  - the MS-TCN at width 192 with label smoothing on the same 281 inputs, fine-tuned with the 20
     SkillCorner games added and then with the 3 Metrica sample games mixed in
-    (candidates/acc_shape/member_mstcn_as_skcft_metft.py, mstcn_as_skcft_metft.npz);
+    (candidates/newfeat_v12/member_mstcn_v12_skcft_metft.py, mstcn_v12_skcft_metft.npz);
   - the ball radar with stacked LightGBM (ball_radar_pff), as in v9;
   - the ball-centred possessor-pointer network at 19.3M parameters (nn_pointer,
     ptr_ballc_p20m.npz), as in v9;
-  - a stacker (candidates/final_v11/stacker_v11.txt, applied by candidates/stacker_met/stacker.py):
+  - a stacker (candidates/final_v12/stacker_v12.txt, applied by candidates/stacker_met/stacker.py):
     LightGBM, 200 trees per class, on the four models' probabilities at 7 time offsets (84 inputs).
 It then decodes the five members with candidates/mbr_decode: per stretch of play it keeps the
 candidate label sequence (the members' hard vote under v6's rule of 1 s smoothing + 1.25 s
@@ -36,30 +38,37 @@ files (numpy + scipy + LightGBM, and PyTorch on the CPU for the pointer's forwar
 The pointer's forward pass runs in PyTorch (CPU, float64, candidates/nn_pointer/ptr_torch.py: the
 numpy forward's maths op for op, in a worker process that never loads LightGBM) when torch is
 installed, else in numpy (ptr_np.py, the reference). MTAH_PTR_BACKEND=numpy forces the numpy path.
-Which one ran is printed on stderr. The numpy path was not run for v11.
+Which one ran is printed on stderr. For v12 the numpy path wrote the same file as the torch path (about 20 minutes).
 
 Numerical libraries (and the torch worker) are pinned to one thread before numpy is imported. That
-alone does not make floating-point results machine-independent. What has been checked for v11 so
-far: the file was regenerated twice on macOS arm64 (Accelerate, torch backend, one thread), through
-two drivers (this script, and a driver that runs the same pipeline and logs memory), and both runs
-wrote the same file, sha256 9ba4f14d75d872284ecd76cd1c6c6308ad5bf7f9d6c9fedcf3d2b2ce46586938.
-PENDING for v11 <!-- TODO final check -->: this script run twice in a row, other thread counts, Linux
-arm64 containers, a fresh clone of the repository, and Linux x86-64 under emulation. Those checks
-were done for v9 (--candidate final_f4spm: sha256
-9926b7c56557a7aedb39597b7c2f52b37c82028d01b394021a360bb3aabcb3e2) and for v8 (--candidate final_f4sp:
-60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) with the pinned
-requirements-submission.txt and Python 3.14.6 (the Linux containers also need the system OpenMP
-runtime, libgomp1, for LightGBM); they say nothing yet about v11, whose stacker is sensitive to
-single float32 steps in its inputs. Native x86-64 hardware was not tested for any version.
-Run time of v11 with torch: 9-11 minutes on one thread of an Apple M5 Max that was busy with other
-jobs (v9: 2-2.5 minutes on a lightly loaded one); peak memory 5.9 GB. See TECHNICAL.md, section 6
-"How to Reproduce", and candidates/final_v11/README.md.
+alone does not make floating-point results machine-independent. What was checked for v12 on 14 Nov 2026, with the pinned
+requirements-submission.txt and Python 3.14.6: every run below wrote the same file, sha256
+eb249aa50cc9ab989514e982b9bfefabc3143f52b996811bb209f9429f5d849f:
+  - this script twice in a row on macOS arm64 (Accelerate, torch backend, one thread);
+  - the same steps at 1, 2 and 8 threads, through a driver outside the repository that skips the
+    pinning above;
+  - a fresh clone of the commit that added v12, in a new environment (only this docstring changed
+    after that commit);
+  - that clean clone in a python:3.14.6-slim Linux arm64 container (OpenBLAS; the container also
+    needs the system OpenMP runtime, libgomp1, for LightGBM);
+  - the same in a Linux x86-64 container under Rosetta emulation (torch BLAS MKL, AVX2);
+  - the numpy pointer backend on macOS arm64.
+Not checked: native x86-64 hardware (for any version). No platform check was run for v11, which v12
+replaced. v9 (--candidate final_f4spm: sha256
+9926b7c56557a7aedb39597b7c2f52b37c82028d01b394021a360bb3aabcb3e2) and v8 (--candidate final_f4sp:
+60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57) had the same kind of checks.
+Run time of v12 with torch: 4.2 to 4.7 minutes on one thread of an Apple M5 Max that was shared
+with other jobs (11 minutes in the Linux arm64 container, 20 minutes under x86-64 emulation); peak
+memory of the main process 6 GB (the torch worker is a separate process). See TECHNICAL.md, section 6 "How to Reproduce", and
+candidates/final_v12/README.md.
 
---candidate picks the ensemble folder under candidates/ (default: DEFAULT_CANDIDATE = final_v11,
-the submission above). final_f4spm ("F4sP-MF2", v9, the previous submission), final_f4sp ("F4sP",
-v8) and final_f4sps ("F4sP + S2", candidate v10: v8 plus a Metrica-trained stacker as a fifth
-decode member, never the submission; see its README.md) are opt-in; a non-default candidate needs
-an explicit --out, so it never overwrites evaluation/results/camp_nou_limits.csv by accident.
+--candidate picks the ensemble folder under candidates/ (default: DEFAULT_CANDIDATE = final_v12,
+the submission above). final_v11 (v11, published on 14 Nov 2026 and then replaced; sha256
+9ba4f14d75d872284ecd76cd1c6c6308ad5bf7f9d6c9fedcf3d2b2ce46586938), final_f4spm ("F4sP-MF2", v9),
+final_f4sp ("F4sP", v8) and final_f4sps ("F4sP + S2", candidate v10: v8 plus a Metrica-trained
+stacker as a fifth decode member, never the submission; see its README.md) are opt-in; a
+non-default candidate needs an explicit --out, so it never overwrites
+evaluation/results/camp_nou_limits.csv by accident.
 """
 
 import os
