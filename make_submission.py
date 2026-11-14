@@ -82,8 +82,8 @@ import possession_metrics as pm      # noqa: E402
 import possession_pipeline as pp     # noqa: E402
 
 
-DEFAULT_CANDIDATE = "final_v11"
-CANDIDATES = ("final_f4sp", "final_f4spm", "final_f4sps", "final_v11")
+DEFAULT_CANDIDATE = "final_v12"
+CANDIDATES = ("final_f4sp", "final_f4spm", "final_f4sps", "final_v11", "final_v12")
 
 
 def load_ensemble(candidate=DEFAULT_CANDIDATE):
