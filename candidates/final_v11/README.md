@@ -1,6 +1,6 @@
 # final_v11: submission v11 (new-feature members + stacker)
 
-**Superseded.** v11 was published on 14 Nov 2026 and then replaced by v12 (`../final_v12`), which is now the submission.
+**Superseded.** v11 was published on 14 Nov 2026 and then replaced by v12 (`../final_v12`). v12 was replaced the same day by v13 (`../final_v13`), which is now the submission.
 
 `pipeline.py` is v9 (`../final_f4spm`) with two changes. The first passed its rule on its own. The second (variant E3 of
 "stack_ext") was ahead of v9 on all four benches but did not pass the rule of its own addendum, which compared it with
@@ -19,11 +19,11 @@ addendum of 13 Nov 2026 18:32 CST ("v11"); the two parents are the addenda of 11
 ("stack_ext", variant E3).
 
 **Status: the intended submission from 13 Nov 2026 (the user's choice) until v12 replaced it on 14 Nov.**
-`make_submission.py` now runs v12 by default; v11 runs with `--candidate final_v11 --out <path>.csv`. The checks
+`make_submission.py` now runs v13 by default; v11 runs with `--candidate final_v11 --out <path>.csv`. The checks
 listed under "Deferred checks" were never run for v11, because v12 replaced it before they were due.
 
 ```sh
-python make_submission.py --candidate final_v11 --out <path>.csv   # v11 (the default is now final_v12)
+python make_submission.py --candidate final_v11 --out <path>.csv   # v11 (the default is now final_v13)
 ```
 
 | slot | member file | what it is | weights |

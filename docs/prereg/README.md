@@ -4,7 +4,7 @@ Verbatim copies of the decision rules and the finals' reports as they were writt
 (`$MTAH_WORK/arch/`) during rounds 4 and 5. They contain rules, timestamps and bench scores only: no
 match data and no labels. Paths inside them are relative to `$MTAH_WORK` (for example
 `arch/round5_prereg.txt`), because that is where they were written. The account of how they were
-applied, including where the process deviated from them, is in `../../TECHNICAL.md`, section 6.2.
+applied, including where the process deviated from them, is in `../../TECHNICAL.md`, section 4b.
 
 | file | original location | what it is |
 |---|---|---|

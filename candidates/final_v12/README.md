@@ -1,5 +1,7 @@
 # final_v12: submission v12 (v11 with 58 more input columns)
 
+**Superseded.** v12 was published on 14 Nov 2026 and replaced the same day by v13 (`../final_v13`: v12 with member weights 1 3 1 2 3 in the decoder, chosen after results), which is now the submission. The text below is v12's record as written.
+
 `pipeline.py` is v11 (`../final_v11`) with one change, and the stacker refitted to go with it:
 
 1. **New members.** The TCN and the MS-TCN are replaced by retrained versions that read 281 inputs instead

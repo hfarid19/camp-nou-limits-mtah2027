@@ -1188,3 +1188,144 @@ NOTE 2026-11-14 03:27 CST (bcast_sim; execution per NOTE 13 Nov 18:24, written b
 RESULT 2026-11-14 05:26 CST (bcast_sim): a_cont v9 on all benches: DFL +0.000229 +- 0.000094 (z +2.43), PFF +0.000077 +- 0.000222, SkillCorner
  -0.000455 +- 0.000437 (z -1.04, 2W / 9L), Metrica strict +0.000481 +- 0.000652 -> criterion (2) fails (SkillCorner < -1 SE).
  No rule is "worth shipping"; pess / opt not run (no rule reached them); no candidate folder.
+
+NOTE 14 Nov 2026 12:00 CST (public 5 minutes, v12; written BEFORE the score is run): at the user's request ("score v12") the
+ submitted v12 file (candidates/final_v12, sha256 eb249aa5...5d849f) is scored once on the public 5-minute window with
+ evaluation/run_evaluation.py, as a curiosity. v12 was chosen, verified on all platforms and published before this (commits
+ 5fb2495 and 59b26af). The window has 17 true possessions and is not a tuning or selection set (RULES.md / FAQ); the score will
+ be disclosed in TECHNICAL.md 4b whatever it is, and no version will be chosen, changed or withdrawn because of it.
+RESULT 14 Nov 2026 12:02 CST (public 5 minutes, v12): spellF1 0.6256, macroF1 0.8333, 22 possessions predicted (17 true). Curiosity only; nothing changes.
+
+ADDENDUM 14 Nov 2026 12:20 CST (member-weight search on v12; written BEFORE any run). At the user's request ("run an analysis to
+ see which weights to which model would yield the best results"). Decode-only on the saved v12 bench member outputs (the five
+ members of final_v12; decoder config unchanged: hmm, alpha 0.1, rho 0.2, margin 0), no retraining, benches only (Metrica strict
+ LOGO 3, DFL 21 units, SkillCorner 20, PFF 48); never the match, never the public window.
+ Grid: integer weights 0..3 per member (a weight w = the member entered w times, as in the 14 Nov pointer/stacker double-count
+ tests), all 4^5 - 1 = 1023 combinations up to scale duplicates; if run time does not allow, weights 0..2 (242) first.
+ Reporting: (a) the full-bench table of every combination (in-sample, optimistic by construction: 1023 comparisons on benches
+ already used for every choice); (b) an honest estimate by nested selection: leave-one-bench-out (weights picked on three benches
+ by mean spellF1 difference vs equal weights in SE units, scored on the fourth) and leave-one-game-out within each bench.
+ Reading stated now: the analysis is descriptive. A weighting is "worth proposing" to the user only if its NESTED gain over equal
+ weights is > 2 SE on at least two benches including Metrica or SkillCorner and no bench is below -1 SE. The submission (v12,
+ published and verified) changes only by an explicit user decision, and any change needs the full final check again.
+ Already known (14 Nov, in-sample): pointer x2 loses Metrica and SkillCorner; stacker x2 gains Metrica only (+0.0090 +- 0.0042).
+
+ADDENDUM 14 Nov 2026 12:45 CST (fewer false possessions: decode-only sweep on v12; written BEFORE any run). At the user's request
+ ("try levers 1 and 2"). Motive: the 14 Nov pointer-vs-v12 analysis shows v12 still has 104 / 48 / 42 / 19 false possessions per
+ 90 min on SkillCorner / Metrica / DFL / PFF (IoU 0.5, raw labels), and on DFL it also misses 145 true ones. (The public window,
+ scored once for v12 on 14 Nov, also showed more predicted than true possessions; it is NOT used here and plays no part in any
+ choice.) Saved v12 bench member outputs only, equal weights, no retraining; benches only.
+ Lever 1 (hand-back threshold): (1a) control.fold of the final decoded output at T in {1.5, 1.75, 2.0} s (v12 = none beyond the
+ candidates' own rules); (1b) the base candidate's rule changed from merge 1 s + fold 1.25 s to fold 1.5 / 1.75 / 2.0 s;
+ (1c) the candidate grid's fold values shifted up ({0.5..2.0} instead of {0..1.5}).
+ Lever 2 (stickier decoder): (2a) rho in {0.15, 0.10, 0.05} (v12: 0.20); (2b) the samples read at coarser granularities
+ (fold T = 0.5, 1, 1.5 s instead of 0, 0.5, 1 s); (2c) margin in {0.005, 0.01} (v12: 0).
+ Then at most 4 combinations of the best single setting of each lever. About 20 variants in all.
+ Report per bench: spellF1 and macroF1 paired differences to v12 (game-level SE, wins), false and missed possessions per 90 min,
+ spell precision and recall at IoU 0.5, possessions per 90.
+ Reading stated now: "worth proposing" = spellF1 gain > 2 SE on at least two benches including Metrica or SkillCorner, and no
+ bench below -1 SE. About 20 comparisons on benches already used for every choice, so a pass is a selection. v12 changes only by
+ an explicit user decision and would need the full final check again.
+
+ADDENDUM 14 Nov 2026 13:30 CST (audio of the tactical video; written BEFORE the classifier below is run). At the user's request
+ ("lets try including audio as a param somehow"). Already done today, label-free, before this note: the audio track was
+ extracted locally (AAC stereo, mean -57.6 dB) and a narrow-tone whistle detector was compared with v12's own stoppages: strict
+ setting 33 events in the halves, 1 within 3 s of a v12 live->dead change (chance 4.2); loose 291, 36 (chance 36.8); no lag in
+ +-60 s gives a peak. Verdict of that check: no usable whistle signal.
+ Now: does the audio carry ANY information about dead ball? No benchmark game has audio, so nothing can be trained on labelled
+ audio and no audio rule can be benchmarked. Label-free test on the match only: LightGBM on audio features (40 log-mel bands
+ at 5 steps/s, with means over +-1, +-3, +-10 s and differences) predicts v12's OWN dead/live label; contiguous time blocks,
+ 5-fold, so a model never predicts a block it saw. Also the target "a v12 stoppage starts within the next 3 s". Baseline:
+ overall loudness only. No ground truth, no public window; the audio never leaves the Mac.
+ Reading stated now: held-out AUC below 0.65 for dead/live = audio is not informative, stop. AUC >= 0.65 only shows that audio
+ can partly reproduce v12's own stoppages; it does NOT show that adding audio would improve the score, because the target is
+ our own output and there is no labelled audio to test against. No audio feature enters the submission from this test; any
+ further step would need the user's decision and could not be validated on any benchmark (the same wall as the broadcast feed).
+RESULT 14 Nov 2026 13:40 CST (audio): held-out AUC for v12's own dead/live label 0.748 (folds 0.719-0.791; loudness only 0.670;
+ 0.677 when stoppages longer than 30 s are excluded; video halves 0.723 / 0.773). "A v12 stoppage starts within 3 s": 0.726
+ (folds 0.611-0.865). Above the 0.65 line: the audio is informative about v12's stoppages. As stated beforehand this does not
+ show that audio would improve the score. Nothing from audio is in the submission.
+RESULT 14 Nov 2026 13:55 CST (fewer false possessions sweep, addendum 12:45): no setting is "worth proposing". Settings that cut
+ false possessions (final fold 1a, rho 0.15 / 0.10 / 0.05, coarser sample reading 2b) gain on SkillCorner only (rho 0.10:
+ +0.0142 +- 0.0031) and lose on DFL (-0.0128), PFF (-0.0113) and Metrica (-0.0135); 2b: +0.0044 / -0.0048 / -0.0058 / +0.0005;
+ 1a: SkillCorner +0.005 to +0.009, others -0.023 to -0.074. 1b, 1c, 2c and the combinations are near no-ops. v12 unchanged.
+ Deviations / choices made by the agent, recorded here: 17 variants, not "about 20"; 1b read literally (base = vote with no merge
+ + fold T; only the base candidate changes; the reading "keep merge 1 s, change the fold" was not run); 2c margins are in the
+ decoder's own units, where 0.005 and 0.01 are tiny (earlier grids used 0.25 and 0.5); "best setting" for the combinations was
+ fixed before results as mean z over the four benches, which picked near-no-op settings, so the 4 combinations are near no-ops.
+
+ADDENDUM 14 Nov 2026 14:05 CST (audio dead-ball hint, candidate "v12a"; written BEFORE it is built). At the user's request ("try a
+ weak deadball hint"). v12 stays the submission; this is a separate, experiment-only output, not a candidate folder in the repo.
+ Build: the audio model of the 13:30 addendum (LightGBM on log-mel features, trained on v12's OWN dead/live labels, out-of-fold
+ by 2-minute blocks) gives p_audio(dead) per 0.2 s step. z = logit(p_audio) - logit(mean p_audio). In the decode only, each of
+ the five members' probabilities gets its dead-ball log-probability shifted by lambda * z and is renormalised (the members'
+ hard codes, and so the vote candidates, are unchanged: the hint only moves the samples that the candidates are scored against).
+ lambda in {0.25, 0.5, 1.0}. Everything else is v12.
+ Reported, all label-free: graded frames that differ from v12, possessions, dead share, stoppages added / removed / moved.
+ Stated now: this cannot be validated. No benchmark has audio, the audio model was trained on v12's own output, and it would
+ make the pipeline depend on decoding the video's audio (platform-dependent) and on a model trained on the match. It is NOT
+ scored on the public window unless the user asks, and then only as a disclosed curiosity that decides nothing. My recommendation
+ recorded beforehand: do not submit it. Any use is an explicit user decision.
+RESULT 14 Nov 2026 14:20 CST (audio hint v12a; label-free; v12 re-decode reproduces eb249aa5...): lambda 0.25 / 0.5 / 1.0 change
+ 0.97% / 1.10% / 1.65% of graded frames against v12 (to dead 612 / 1055 / 1527, from dead 579 / 375 / 565, team swaps 352 / 315 /
+ 530 frames); possessions 323 / 322 / 317 (v12 319); dead share 0.455 / 0.459 / 0.461 (v12 0.455); stoppages 133 / 131 / 127
+ (v12 136), of which new (no overlap with a v12 stoppage) 1 / 0 / 0. The hint adds no stoppage that v12 lacks; it lengthens and
+ merges existing ones and changes some team labels as a side effect. Not scored on the public window. Not a candidate.
+
+ADDENDUM 14 Nov 2026 15:53 CST (finer second pass of the member-weight search; written BEFORE the full 0..3 grid has finished
+ and before any nested result exists; the in-sample table for weights 0..2 HAS been seen: best mean 0 1 0 2 2, gains almost
+ only on Metrica). At the user's request ("if a finer second pass is worth it, start it automatically on 6-8"; 6-8 = processes).
+ Trigger, fixed now: the finer pass runs only if, on the full 0..3 grid, the NESTED estimate (leave-one-bench-out and
+ leave-one-game-out, as in the 12:20 addendum) of the selected weighting is > +1 SE over equal weights on at least two benches
+ including Metrica or SkillCorner, and no bench is below -1 SE. Otherwise it is not run and that is reported.
+ Finer pass, if triggered: centre w* = the weighting selected by the 12:20 criterion (mean z over the four benches) on the full
+ grid; the largest member of w* is held fixed (only ratios matter); each of the other four members takes w* - 0.5, - 0.25, 0,
+ + 0.25, + 0.5 (clipped at 0), so at most 625 weightings; 6 to 8 processes, nice 10, CPU only, memory checked before launch.
+ Fractional weights must first be shown to reproduce the integer results (w* itself and 11111 identical per unit).
+ Reading unchanged from 12:20: a weighting is worth proposing only if its NESTED gain is > 2 SE on at least two benches
+ including Metrica or SkillCorner and no bench is below -1 SE. The finer pass adds up to 625 more comparisons on the same
+ reused benches; this is stated as a limit. v12 stays the submission unless the user decides otherwise; a change would need
+ the full final check again. evaluation/gt and the public window are not touched.
+ Note on clock times: the 13:30, 14:05 and 14:20 labels above were written ahead of the real clock (real times about 12:16 to
+ 12:55 CST); the order note-before-run is as stated.
+RESULT 14 Nov 2026 (member-weight search on v12, full 0..3 grid, 1023 weightings, 4088 in-sample bench-level comparisons; files
+ in $MTAH_WORK/arch/r5_arch/weights_v12/out): NO weighting is worth proposing; v12 keeps equal weights. Checks: 11111 reproduces
+ v12 (0.8197 / 0.7735 / 0.6333 / 0.8413) and 11112 the stacker x2 result on 95/95 units. In-sample best by mean of four
+ 0 1 0 2 3 (TCN, MS-TCN, radar, pointer, stacker): Metrica +0.0201 +- 0.0063, DFL +0.0019 +- 0.0021, SKC -0.0006 +- 0.0016,
+ PFF -0.0006 +- 0.0011; equal weights rank 286 of 1023. Pre-registered pick (mean z) 1 3 1 2 3; leave-one-bench-out z = +1.93
+ (Metrica, pick 2 2 0 3 3) / +0.46 (DFL) / +0.75 (SKC) / -3.21 (PFF, -0.0022 +- 0.0007); leave-one-game-out, all-bench pool:
+ +0.92 / +0.46 / +0.75 / -3.21. The 12:20 rule (nested > 2 SE on two benches incl. Metrica or SKC, none below -1 SE) is not met
+ by any scheme that picks one weighting for all benches. Same-bench tuning gains on held-out games of that bench (SKC +0.0072
+ +- 0.0014, PFF +0.0017 to +0.0038) but each bench picks a different weighting that costs about 0.01 on the others.
+ 15:53 trigger for the finer pass: FAILED (one bench above +1 SE at most, PFF below -1 SE) -> finer pass not run.
+ Deviations: no deduplication of scale multiples (22222 vs 11111 decode identically on 83/95 units only, through the vote
+ tie-break; score effect <= about 4e-5); the 0..2 grid was run and analysed first (in-sample table seen by the main session
+ before the nested result); beyond the addendum the agent also used mean z for leave-one-game-out, a raw-difference criterion
+ and a same-bench pool (reported, not used for the trigger); z set to 0 where SE = 0; ties go to equal weights. The 12:20
+ label was ahead of the real clock (note saved 12:02, first run about 12:05).
+
+DECISION 14 Nov 2026 16:20 CST (user decision, recorded before the candidate is built). After seeing the weight-search result
+ above, the user chose the weighting 1 3 1 2 3 (TCN, MS-TCN, radar, pointer, stacker) for the submission ("i like 13123, lets
+ do that instead"). This weighting was the pre-registered mean-z pick on the full grid, but it FAILED the pre-registered
+ "worth proposing" rule (nested: Metrica +1.93 SE, DFL +0.46, SKC +0.75, PFF -3.21) and the main session had reported "no
+ weighting is worth proposing". It is therefore a choice made after results, against the stated rule, on benches reused for
+ every choice; in-sample it is Metrica +0.0113 +- 0.0004 (3 games), DFL +0.0004 +- 0.0009, SKC +0.0013 +- 0.0018, PFF -0.0022
+ +- 0.0007. To be stated as such in the write-ups. Build: candidates/final_v13 = final_v12 with the decoder's member list in
+ the search's "rounds" order (members with weight >= 1, then >= 2, then >= 3, each in v12 order); nothing retrained, decoder
+ config unchanged. Label-free match statistics and the full final check (determinism, threads, fresh clone, Linux, live =
+ offline) are required before it replaces v12. Not scored on the public window unless the user asks.
+RESULT 14 Nov 2026 17:50 CST (v13 built and checked; label-free). candidates/final_v13: 309 possessions (v12 319), mean 11.1 s,
+ dead share 0.460 (0.455), 131 stoppages (136; none new), differs from v12 on 1.67% of graded frames. sha256 697fae9f6c9dfb83
+ 2fadf0ead231be1db3592b1b078b2e56fd5a28ece4215487 from every check: make_submission.py twice, threads 1 / 2 / 8, a clone of
+ 59b26af plus the two v13 code files in a new environment, Linux arm64, Linux x86-64 under emulation, numpy pointer backend, and
+ an independent re-decode of v12's saved member outputs; live = offline on DFL J03WN1 x 3 seeds. Not scored on the public window.
+
+ADDENDUM 14 Nov 2026 17:55 CST (public 5-minute window, v13; written BEFORE the score is run). At the user's request ("score on
+ the public"). One run of evaluation/run_evaluation.py on the v13 CSV (sha 697fae9f...). Curiosity only: 17 true possessions,
+ not training data and not a tuning set (RULES / FAQ). Stated now: the result decides nothing; v13 was chosen and checked
+ before this score existed, and it is neither kept nor dropped because of it. The score will be disclosed in both write-ups.
+ Reference: v12 0.6256 / 0.8333, v11 0.6444 / 0.796.
+RESULT 14 Nov 2026 18:03 CST (public window, v13, one run): spellF1 0.6595, macroF1 0.8332 (H 0.907, A 0.904, D 0.689); 20
+ predicted possessions vs 17 true; at IoU 0.5 matched 13, missed 4, spurious 7; D recall 0.551; team accuracy when alive 0.950.
+ (v12: 0.6256 / 0.8333, 22 predicted, spurious 9.) Decides nothing, as stated beforehand; the difference is two fewer spurious
+ possessions on a window of 17.

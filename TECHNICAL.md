@@ -2,9 +2,9 @@
 
 Team Camp Nou Limits, More than a Hack 2027, Phase 1 (ball possession).
 
-Our final submission is version 12 (`candidates/final_v12`). Running `python make_submission.py` regenerates it: `evaluation/results/camp_nou_limits.csv`, sha256 `eb249aa50cc9ab989514e982b9bfefabc3143f52b996811bb209f9429f5d849f`, 319 possessions, 45.5% dead ball. On 14 Nov the same file came out of every check we ran: macOS with 1, 2 and 8 threads, a fresh clone, a Linux arm64 container and an emulated x86-64 container (section 6).
+Our final submission is version 13 (`candidates/final_v13`). It is version 12 with unequal member weights in the decoder. We chose these weights after seeing results, and they failed the rule we wrote before the search (section 3h). Running `python make_submission.py` regenerates it: `evaluation/results/camp_nou_limits.csv`, sha256 `697fae9f6c9dfb832fadf0ead231be1db3592b1b078b2e56fd5a28ece4215487`, 309 possessions, 46.0% dead ball. On 14 Nov every reproducibility check wrote this same file, on macOS arm64, Linux arm64 and x86-64 under emulation (section 6).
 
-This document is the summary. The full record up to version 8 is in [`docs/TECHNICAL_detailed.md`](docs/TECHNICAL_detailed.md). The reports of the work after version 8 (the size study, the 11M radar, the Metrica experiments and the version 9 build) are in `docs/reports/` and `candidates/final_f4spm/README.md`. The record of version 11, which was built on 13 Nov, is in `candidates/final_v11/README.md`. Version 11 was published on 14 Nov and then replaced by version 12, which was built on 13 and 14 Nov. Its record is in `candidates/final_v12/README.md`. The rules for both are in the rule file `docs/prereg/round5_prereg.txt`.
+This document is the summary. The full record up to version 8 is in [`docs/TECHNICAL_detailed.md`](docs/TECHNICAL_detailed.md). The reports of the work after version 8 (the size study, the 11M radar, the Metrica experiments and the version 9 build) are in `docs/reports/` and `candidates/final_f4spm/README.md`. The record of version 11, which was built on 13 Nov, is in `candidates/final_v11/README.md`. Version 11 was published on 14 Nov and then replaced by version 12, which was built on 13 and 14 Nov. Its record is in `candidates/final_v12/README.md`. Version 12 was published on 14 Nov and replaced the same day by version 13. Its record is in `candidates/final_v13/README.md`. The rules for all three are in the rule file `docs/prereg/round5_prereg.txt`.
 
 ## 1. Motivation
 
@@ -12,7 +12,7 @@ The challenge was to label each of the 199,319 frames of the Barcelona vs Athlet
 
 We sought to solve this without ever labelling the provided match. The rules give us 5 public minutes of truth, which is far too little to train on, and the rules also say it must not be used for training or tuning. However, there is a wealth of open football tracking data from other games that already carries possession labels. Therefore, our approach was to learn possession from those other games and make their clean tracking look like the automatic tracking of the provided match.
 
-We also sought to take our analysis a step further and understand how much model size matters for this task. We trained models from 0.1 million to 500 million parameters and compared the results with two published studies of scaling laws. That analysis is in section 3i.
+We also sought to take our analysis a step further and understand how much model size matters for this task. We trained models from 0.1 million to 500 million parameters and compared the results with two published studies of scaling laws. That analysis is in section 3j.
 
 ![How the pipeline works](docs/fig/pipeline.png)
 
@@ -36,7 +36,7 @@ None of our benchmarks has a second feed. Therefore, we built a simulator that a
 
 The dead-ball prior gained on SkillCorner (+0.0024 ± 0.0008) and on held-out Metrica (+0.0024 ± 0.0004), and it failed on the World Cup games. Two more rules finished later. Filling only gaps shorter than 10 seconds lost on both benchmarks (−0.0022 ± 0.0010 on the Bundesliga, −0.0023 ± 0.0007 on the World Cup). Filling only gaps that the broadcast ball covers completely, and where it meets the tactical ball within 2 metres at both ends, was the one rule to pass on the Bundesliga (+0.0002 ± 0.0001) and the World Cup (+0.0001 ± 0.0002). It then lost on SkillCorner (−0.0005 ± 0.0004), which is just over one standard error and fails the rule's condition that no benchmark falls by more than one. It changes only 1 to 5 seconds of ball per 90 minutes. Because of a compute limit, the fill rules were scored on the Bundesliga and the World Cup first, and SkillCorner and Metrica were added only for a rule that passed there. A seventh planned rule, which drops the tactical ball where the two balls disagree, was not run, because the benchmarks' tactical ball has no tracking error and the rule could only remove correct data. None of the 6 rules that ran passed, so the submission uses the tactical feed only.
 
-The simulator has limits that we stated before scoring. Its link between broadcast cut-aways and stoppages was calibrated on one match against version 9's own dead-ball output, and the benchmarks have far fewer gaps in live play than the match has. The models were not retrained to expect a filled ball. Seven rules against two ensembles is 14 comparisons, so even a pass would have been a selection. No fusion rule was tested on the version 11 or version 12 ensembles.
+The simulator has limits that we stated before scoring. Its link between broadcast cut-aways and stoppages was calibrated on one match against version 9's own dead-ball output, and the benchmarks have far fewer gaps in live play than the match has. The models were not retrained to expect a filled ball. Seven rules against two ensembles is 14 comparisons, so even a pass would have been a selection. No fusion rule was tested on the version 11, 12 or 13 ensembles.
 
 ### 2b. Labelled Games From Other Sources
 
@@ -71,7 +71,7 @@ The open games have clean tracking and the provided match has automatic tracking
 
 We also discovered a bug late in the project. For one of the 7 Bundesliga games the attack direction was mirrored in the training data. Fixing it gained +0.008 on the Bundesliga benchmark.
 
-The shipped models were trained on 55 games (7 Bundesliga and 48 World Cup), and the MS-TCN on 78 games with SkillCorner and Metrica added. The stacker of section 3f was trained on the 3 Metrica games only. For benchmarking, games are held out in groups that we call folds. One training fold of the size study in section 3i holds 43 games (36 World Cup and 7 Bundesliga), which is about 1.3 million unique labelled time steps and about 13,000 possessions.
+The shipped models were trained on 55 games (7 Bundesliga and 48 World Cup), and the MS-TCN on 78 games with SkillCorner and Metrica added. The stacker of section 3f was trained on the 3 Metrica games only. For benchmarking, games are held out in groups that we call folds. One training fold of the size study in section 3j holds 43 games (36 World Cup and 7 Bundesliga), which is about 1.3 million unique labelled time steps and about 13,000 possessions.
 
 ## 3. Models and Analytics
 
@@ -105,7 +105,7 @@ We then moved to sequence models that read the whole game. The four models in th
 | Ball radar | 0.1M | A network that infers where the missing ball is and who has it from player movement alone, followed by gradient boosted trees. |
 | Pointer | 19.3M | For each frame it looks at the 8 players nearest the ball and points at the one in possession, or at "dead ball". |
 
-The pointer is our best single model, with 0.764 alone on the final Bundesliga benchmark and selection score of section 3a. Versions 11 and 12 add a fifth member, a stacker that reads the outputs of these four (section 3f).
+The pointer is our best single model, with 0.764 alone on the final Bundesliga benchmark and selection score of section 3a. Versions 11 to 13 add a fifth member, a stacker that reads the outputs of these four (section 3f).
 
 ### 3c. The Possession Rules
 
@@ -120,7 +120,7 @@ The 1.25 second threshold sits between what the Bundesliga benchmark prefers (1 
 
 Our first combination was a majority vote. A vote over all 11 of our early models was worse than the best single model. The reason was that 7 of them shared the same evidence and made the same mistakes, so they outvoted the diverse ones. Selecting models with each game's choice made on the other six games picked exactly the three diverse ones. That three-model vote was our first submission, and version 6 is the same three model families retrained on the Bundesliga and World Cup games.
 
-Based on this, we decided to improve the combiner itself. The final submission uses minimum Bayes risk (MBR) decoding. For each stretch of play it considers several complete labellings, such as the vote under different smoothing rules and each model alone. It then keeps the labelling with the highest expected spellF1 against samples drawn from the models' probabilities. This optimises the competition metric directly.
+Based on this, we decided to improve the combiner itself. The final submission uses minimum Bayes risk (MBR) decoding. For each stretch of play it considers several complete labellings, such as the vote under different smoothing rules and each model alone. It then keeps the labelling with the highest expected spellF1 against samples drawn from the models' probabilities. This optimises the competition metric directly. Up to version 12 every member had one vote. In version 13 some members count more than once (section 3h).
 
 | Step | Bundesliga, vs version 6 | SkillCorner, vs version 6 |
 |---|---|---|
@@ -132,7 +132,7 @@ Based on this, we decided to improve the combiner itself. The final submission u
 
 ### 3e. Fine-Tuning on SkillCorner, a Larger Pointer and Fine-Tuning on Metrica
 
-After version 7 we ran three more experiments, which led to versions 8 and 9. Section 3f describes the two that led to version 11, and section 3g the step to version 12. The first two had their decision rules written down before the first result. The rule for the third was changed after its first results, which we explain below.
+After version 7 we ran three more experiments, which led to versions 8 and 9. Section 3f describes the two that led to version 11, section 3g the step to version 12, and section 3h the step to version 13. The first two had their decision rules written down before the first result. The rule for the third was changed after its first results, which we explain below.
 
 The first added the 20 SkillCorner games to training. We tried a full retrain and a short fine-tune, for the MS-TCN and for the pointer. SkillCorner scores were cross-validated so that each game was scored by a model that had not trained on it.
 
@@ -159,7 +159,7 @@ We first pooled the Metrica games into training at their natural share, which is
 
 Therefore, the amount of Metrica data in the mix mattered. Mixing it 1:1 for a short fine-tune moved the MS-TCN about ten times further on held-out Metrica games than pooling did (+0.0557 against +0.0059 alone). Starting that fine-tune from the shipped model, with SkillCorner kept in the mix, held the SkillCorner score. Alone, the version 9 MS-TCN gains +0.0557 on held-out Metrica games (better on 3 of 3), with −0.0069 ± 0.0030 on the Bundesliga and −0.0014 ± 0.0020 on SkillCorner.
 
-We chose version 9 because we expect the hidden truth to follow Metrica's way of labelling. It accepts a small loss on games labelled by other providers (7 Bundesliga and 20 SkillCorner in the rule, and 48 World Cup games scored afterwards, section 3h) for a gain on 3 games labelled by Metrica's rules. The reader should weigh three things. The rule that admitted it gives Metrica more weight than our earlier rules did, and we wrote that rule after seeing the first Metrica results. Version 9 was scored after its direct precursor (the second row) had failed on SkillCorner. Three games is thin evidence. The version 9 ensemble also predicts about 2% fewer possessions on the Metrica games than version 8, which already predicted fewer than Metrica's own count.
+We chose version 9 because we expect the hidden truth to follow Metrica's way of labelling. It accepts a small loss on games labelled by other providers (7 Bundesliga and 20 SkillCorner in the rule, and 48 World Cup games scored afterwards, section 3i) for a gain on 3 games labelled by Metrica's rules. The reader should weigh three things. The rule that admitted it gives Metrica more weight than our earlier rules did, and we wrote that rule after seeing the first Metrica results. Version 9 was scored after its direct precursor (the second row) had failed on SkillCorner. Three games is thin evidence. The version 9 ensemble also predicts about 2% fewer possessions on the Metrica games than version 8, which already predicted fewer than Metrica's own count.
 
 ### 3f. New Input Features and a Stacker (Version 11)
 
@@ -191,7 +191,7 @@ On the Bundesliga and on SkillCorner the stacker adds nothing we can measure on 
 
 On the provided match, version 11 predicts 325 possessions against 321 for version 9, and 96.65% of the graded frames carry the same label in both.
 
-**What else we tried on 13 Nov.** None of the following changed the submission. The numbers are in the table of section 3j.
+**What else we tried on 13 Nov.** None of the following changed the submission. The numbers are in the table of section 3k.
 
 - A spatio-temporal attention model, which attends over the players within a time step and over time in one network, did not beat the pointer.
 - The acceleration columns did not help the pointer or the attention model, which already read the ball's acceleration and turn angle.
@@ -247,7 +247,7 @@ No rule decided between version 11 and version 12. The rule file said so before 
 
 On the provided match, version 12 predicts 319 possessions (271 per 90 graded minutes) against 325 for version 11, with a mean length of 10.9 seconds and 45.5% dead ball. 97.46% of the graded frames carry the same label in both.
 
-**What else we tried on 13 and 14 Nov.** None of the following changed the submission.
+**What else we tried on 13 and 14 Nov.** None of the following changed version 12.
 
 *The attention model as a fifth member.* On the screening benchmarks, adding the spatio-temporal attention model to version 9's four models looked like a gain: +0.0093 ± 0.0016 on the World Cup fold and +0.0062 ± 0.0022 on Metrica. A control, written down before it was decoded, added a second pointer (another training seed) instead. It gained almost as much: +0.0081 ± 0.0016 and +0.0074 ± 0.0014. With the four models that read the new columns, the attention model against the control was +0.0008 ± 0.0007 on the World Cup fold, +0.0012 ± 0.0005 on SkillCorner and +0.0021 ± 0.0015 on Metrica. Only the SkillCorner difference passed 2 standard errors, one benchmark of three, so we dropped the attention model. A variant that also gives it each player's acceleration, trained with one seed only, beat the control only on the World Cup fold (+0.0024 ± 0.0005).
 
@@ -257,13 +257,57 @@ On the provided match, version 12 predicts 319 possessions (271 per 90 graded mi
 
 Versions 11 and 12 are not among the 59 combinations, because they add the stacker, and version 12 also has its own TCN and MS-TCN.
 
-*Counting a member more than once.* The decoder gives each member's probabilities one vote. We tested counting a member twice or three times, on version 11 and then on version 12, on the full benchmarks. Only the decoding changed. On version 11, counting the pointer twice gained on the Bundesliga (+0.0037 ± 0.0007) and the World Cup games (+0.0022 ± 0.0006) and lost on SkillCorner (−0.0025 ± 0.0013, just under 2 standard errors). It passed the reading written for this test narrowly. Counting the pointer three times, or the pointer and the stacker twice, lost on SkillCorner by more than 2 standard errors (−0.0070 ± 0.0019 and −0.0037 ± 0.0014). On version 12, counting the pointer twice lost on SkillCorner (−0.0043 ± 0.0010) and on Metrica (−0.0043 ± 0.0015), and counting the pointer and the stacker twice lost on SkillCorner (−0.0035 ± 0.0016). So the pointer change that passed on version 11 does not carry over to version 12. Counting the stacker twice on version 12 gained only on Metrica (+0.0090 ± 0.0042, 3 of 3 games) and was within noise elsewhere (World Cup −0.0009 ± 0.0005). We left it out, because the gain is on one benchmark of three games and is one result among the 64 benchmark-level comparisons of this test.
+*Counting a member more than once.* The decoder gives each member's probabilities one vote. We tested counting a member twice or three times, on version 11 and then on version 12, on the full benchmarks. Only the decoding changed. On version 11, counting the pointer twice gained on the Bundesliga (+0.0037 ± 0.0007) and the World Cup games (+0.0022 ± 0.0006) and lost on SkillCorner (−0.0025 ± 0.0013, just under 2 standard errors). It passed the reading written for this test narrowly. Counting the pointer three times, or the pointer and the stacker twice, lost on SkillCorner by more than 2 standard errors (−0.0070 ± 0.0019 and −0.0037 ± 0.0014). On version 12, counting the pointer twice lost on SkillCorner (−0.0043 ± 0.0010) and on Metrica (−0.0043 ± 0.0015), and counting the pointer and the stacker twice lost on SkillCorner (−0.0035 ± 0.0016). So the pointer change that passed on version 11 does not carry over to version 12. Counting the stacker twice on version 12 gained only on Metrica (+0.0090 ± 0.0042, 3 of 3 games) and was within noise elsewhere (World Cup −0.0009 ± 0.0005). We left it out, because the gain is on one benchmark of three games and is one result among the 64 benchmark-level comparisons of this test. A later search over all weightings led to version 13 (section 3h).
 
 *A training ball that looks like the match's.* Our degraded training ball is noisier than the match's ball (33.5 touches per minute against 15.7, see above). We tested whether a match-like training ball would recover the SkillCorner loss of the new columns, under a rule written first. Without labels, we fitted the ball's smoothing and a slow random offset so that five statistics of the training ball matched the match's. The result was smoothing over 7 frames and an offset with a standard deviation of 0.05 metres. The rule's fit also included two acceleration statistics. The settings we searched could not move them, they dominated the fit, and the setting it picked was not match-like. We dropped those two statistics before any data was built and recorded the change in the rule file. We then retrained the TCN (one World Cup fold, three seeds) with every training file, or half of them, on the match-like ball. No variant met the rule. With every file changed, the TCN with 223 columns lost on SkillCorner (−0.0062 ± 0.0017) and on Metrica (−0.0087 ± 0.0018), and the TCN with 281 columns lost on SkillCorner (−0.0103 ± 0.0025) and on Metrica (−0.0144 ± 0.0041). With half of the files changed, the 281-column TCN was within noise of its own baseline on SkillCorner (−0.0021 ± 0.0035), but it still lost to the 223-column TCN there (−0.0121 ± 0.0033). The data do not support the idea that the SkillCorner loss comes from a training ball that is too noisy.
 
 *The broadcast feed.* The last fusion rules finished in this period (section 2a). None passed.
 
-### 3h. Comparison of Versions
+### 3h. Member Weights in the Decoder (Version 13)
+
+On 14 Nov we asked whether the five members of version 12 should have unequal weight in the decoder. A weight w means that the member is entered w times in the decoder's list. Nothing is retrained, so the search only decodes version 12's saved benchmark outputs again. We tried every weight from 0 to 3 for each member, which is 1,023 weightings. Comparing each with equal weights on the four benchmarks gives 4,088 benchmark-level comparisons, on benchmarks that had already been used for every earlier choice. Equal weights reproduced version 12's scores exactly.
+
+**The rule.** Before any run we wrote that the search is descriptive. A weighting is worth proposing only if its nested gain over equal weights is above 2 standard errors on at least two benchmarks, including Metrica or SkillCorner, and no benchmark is below −1 standard error. "Nested" means that the weighting is picked without the games it is scored on. The selection criterion was the mean z (gain divided by its standard error) over the four benchmarks.
+
+**In-sample results.** Each cell is the change in spellF1 against equal weights (version 12), with games won. The weights are in the order TCN, MS-TCN, radar, pointer, stacker.
+
+| Weights | Held-out Metrica (3) | Bundesliga (7) | SkillCorner (20) | World Cup (48) | Why it is listed |
+|---|---|---|---|---|---|
+| 0 1 0 2 3 | +0.0201 ± 0.0063 (3/3) | +0.0019 ± 0.0021 (14/21) | −0.0006 ± 0.0016 (8/20) | −0.0006 ± 0.0011 (20/48) | Best mean of the four benchmarks |
+| 0 2 0 3 3 | +0.0190 ± 0.0073 (3/3) | +0.0026 ± 0.0021 (13/21) | −0.0016 ± 0.0018 (9/20) | +0.0007 ± 0.0011 (24/48) | Second-best mean |
+| **1 3 1 2 3 (version 13)** | **+0.0113 ± 0.0004 (3/3)** | **+0.0004 ± 0.0009 (13/21)** | **+0.0013 ± 0.0018 (12/20)** | **−0.0022 ± 0.0007 (20/48)** | Best mean z, the criterion written first |
+| 2 3 0 1 3 | +0.0143 ± 0.0008 (3/3) | −0.0012 ± 0.0015 (9/21) | +0.0016 ± 0.0016 (12/20) | −0.0022 ± 0.0010 (20/48) | Second-best mean z |
+| 0 1 0 2 1 | +0.0118 ± 0.0050 (3/3) | +0.0047 ± 0.0013 (17/21) | −0.0074 ± 0.0025 (5/20) | +0.0025 ± 0.0011 (31/48) | Best on the Bundesliga |
+| 0 3 2 0 2 | +0.0094 ± 0.0029 (3/3) | −0.0084 ± 0.0016 (3/21) | +0.0081 ± 0.0020 (16/20) | −0.0105 ± 0.0010 (3/48) | Best on SkillCorner |
+| 2 1 0 3 1 | +0.0003 ± 0.0043 (1/3) | +0.0040 ± 0.0010 (15/21) | −0.0109 ± 0.0021 (2/20) | +0.0040 ± 0.0010 (34/48) | Best on the World Cup |
+
+Equal weights rank 286 of 1,023 by the mean of the four benchmarks. The weighting 1 3 1 2 3 comes top by mean z mainly because its Metrica gain has a very small standard error over three games (z +28). The benchmarks prefer opposite weightings. SkillCorner prefers more radar and less pointer, and the World Cup and Bundesliga games prefer more pointer and more TCN. Averaged over all weightings, raising the weight of the MS-TCN or of the stacker from 0 to 3 raises held-out Metrica by about 0.015, more than any other benchmark. Both are trained on Metrica, so weighting them up may simply favour Metrica. We did not test this.
+
+**Nested results.** We picked the weighting on three benchmarks by the criterion written first, and scored it on the fourth:
+
+| Held-out benchmark | Picked on the other three | Change on the held-out benchmark (games won) | z |
+|---|---|---|---|
+| Metrica (3) | 2 2 0 3 3 | +0.0055 ± 0.0029 (3/3) | +1.93 |
+| Bundesliga (7) | 1 3 1 2 3 | +0.0004 ± 0.0009 (13/21) | +0.46 |
+| SkillCorner (20) | 1 3 1 2 3 | +0.0013 ± 0.0018 (12/20) | +0.75 |
+| World Cup (48) | 1 3 1 2 3 | −0.0022 ± 0.0007 (20/48) | −3.21 |
+
+No benchmark is above 2 standard errors and the World Cup is below −1, so the rule is not met. Leaving out one game at a time, and picking on all other games of the four benchmarks, gave the same result except Metrica +0.92. Picking on the other games of the same benchmark only does meet the rule, but each benchmark then picks a different weighting, which costs about 0.01 on the others, so it gives no single weighting for the match. The nested mean gain over the four benchmarks was +0.0013, against +0.0027 in-sample. A finer second pass, around the picked weighting, was to run only if the nested gain was above +1 standard error on two benchmarks and below −1 on none. That trigger also failed, and the pass was not run. Two deviations are recorded in the rule file: scale multiples (such as 2 2 2 2 2 and 1 1 1 1 1) were not removed, and the in-sample table of a smaller 0 to 2 grid was seen before the nested result of the full grid.
+
+**The decision.** The analysis concluded that no weighting was worth proposing and that version 12 should keep equal weights. At 16:20 CST on 14 Nov, after seeing these results, we chose 1 3 1 2 3 anyway, and it became version 13. This is a choice made after results, against our own rule, on benchmarks reused for every choice. The rule file records the decision before the candidate was built. Version 13's benchmark scores are in-sample for this choice.
+
+| Ensemble (spellF1) | Held-out Metrica (3) | Bundesliga (7) | SkillCorner (20) | World Cup (48) |
+|---|---|---|---|---|
+| Version 12 | 0.8197 | 0.7735 | 0.6333 | 0.8413 |
+| **Version 13** | **0.8310** | **0.7739** | **0.6346** | **0.8391** |
+| Version 13 against version 12 | +0.0113 ± 0.0004 (3/3) | +0.0004 ± 0.0009 (13/21) | +0.0013 ± 0.0018 (12/20) | −0.0022 ± 0.0007 (20/48) |
+| MacroF1, version 13 against version 12 | +0.0064 | −0.0003 | +0.0009 | +0.0001 |
+
+The gain is almost only on Metrica's three games. Version 13 is within noise of version 12 on the Bundesliga and SkillCorner, and it loses on the World Cup games by about 3 standard errors.
+
+On the provided match, version 13 predicts 309 possessions (262.6 per 90 graded minutes) against 319 for version 12, with a mean length of 11.1 seconds and 46.0% dead ball (version 12: 45.5%). It has 131 stoppages against version 12's 136. None of them is new: 133 of version 12's 136 stoppages are kept, some of them merged. 1.67% of the graded frames differ from version 12 (2,650 frames: 1,347 turn to dead ball, 500 turn from dead ball to a team, and 803 change team). Version 13 was scored on the public 5 minutes once, after it had been chosen and checked (section 4b).
+
+### 3i. Comparison of Versions
 
 ![Score of each version on the four benchmarks](docs/fig/progress.png)
 
@@ -271,7 +315,8 @@ Each cell is spellF1 / macroF1.
 
 | Version | What it is | Bundesliga (7) | SkillCorner (20) | World Cup (48) | Metrica (2) |
 |---|---|---|---|---|---|
-| **12 (final)** | Version 11 with the TCN and MS-TCN retrained on 58 more input columns | **0.7735 / 0.944** | **0.6333 / 0.903** | **0.8413 / 0.956** | see below |
+| **13 (final)** | Version 12 with member weights 1 3 1 2 3 in the decoder | **0.7739 / 0.944** | **0.6346 / 0.904** | **0.8391 / 0.957** | see below |
+| 12 | Version 11 with the TCN and MS-TCN retrained on 58 more input columns | 0.7735 / 0.944 | 0.6333 / 0.903 | 0.8413 / 0.956 | see below |
 | 11 | Version 9 with the new-feature TCN and MS-TCN and a stacker | 0.7673 / 0.943 | 0.6335 / 0.903 | 0.8319 / 0.954 | see below |
 | 9 | Version 8 with the MS-TCN also fine-tuned on Metrica | 0.7590 / 0.939 | 0.6270 / 0.900 | 0.8227 / 0.950 | see below |
 | 8 | Version 7 with the fine-tuned MS-TCN and the 19.3M pointer | 0.7615 / 0.941 | 0.6285 / 0.901 | 0.8252 / 0.951 | **0.7462 / 0.834** |
@@ -281,24 +326,25 @@ Each cell is spellF1 / macroF1.
 | 4 | First version built for the fine reading of "controlled" | 0.710 / 0.927 | 0.590 / 0.888 | 0.676 / 0.906 | 0.708 / 0.825 |
 | 2 (first) | Vote built for a 2 second threshold | 0.662 / 0.923 | 0.611 / 0.891 | 0.632 / 0.902 | 0.664 / 0.822 |
 
-Version 12 has the best score on the Bundesliga and the World Cup games. On SkillCorner version 11 is 0.0002 higher, which is well within noise. Version 9 is within 0.003 of version 8 on the Bundesliga and SkillCorner and gains +0.0108 on held-out Metrica games, version 11 gains a further +0.0179 there, and version 12 another +0.0042:
+Version 13 has the highest score on the Bundesliga and SkillCorner, and version 12 on the World Cup games. Between versions 12 and 13 the Bundesliga and SkillCorner differences are within noise, and version 13 is 0.0022 ± 0.0007 lower on the World Cup games. Version 13's weights were chosen on these benchmarks (section 3h). Version 9 is within 0.003 of version 8 on the Bundesliga and SkillCorner and gains +0.0108 on held-out Metrica games, version 11 gains a further +0.0179 there, version 12 another +0.0042 and version 13 another +0.0113:
 
 | Held-out Metrica, all 3 sample games | spellF1 | macroF1 |
 |---|---|---|
+| Version 13 | 0.8310 | 0.859 |
 | Version 12 | 0.8197 | 0.852 |
 | Version 11 | 0.8155 | 0.853 |
 | Version 9 | 0.7976 | 0.847 |
 | Version 8 | 0.7868 | 0.845 |
 
-Those Metrica figures are leave-one-game-out over all three sample games with a stricter label variant, so they are not comparable with the Metrica column above, whose two games are training data for versions 9, 11 and 12. Candidate version 10 (section 3f) is not in the table because it was never submitted.
+Those Metrica figures are leave-one-game-out over all three sample games with a stricter label variant, so they are not comparable with the Metrica column above, whose two games are training data for versions 9 and 11 to 13. Candidate version 10 (section 3f) is not in the table because it was never submitted.
 
 After choosing version 9 we also scored it on the 48 World Cup games, which needed World Cup fold versions of both MS-TCN fine-tunes. There version 9 is −0.0025 ± 0.0008 against version 8 (better on 16 of 48 games), and it is lower in all four folds. This is the same size of loss as on the Bundesliga, on a larger benchmark.
 
-Against version 7, version 8 gains +0.0060 ± 0.0020 on the Bundesliga (17/21), +0.0135 ± 0.0019 on SkillCorner (17/20) and +0.0046 on Metrica. The World Cup figures for versions 7, 8, 9, 11 and 12 were computed without the TCN's test-time averaging, and the fold models of the fine-tuned MS-TCNs for versions 8 and 9 were trained on different hardware from the shipped ones. For versions 11 and 12 this means that the stacker, which was trained on averaged TCN outputs, read TCN outputs without averaging on the World Cup games.
+Against version 7, version 8 gains +0.0060 ± 0.0020 on the Bundesliga (17/21), +0.0135 ± 0.0019 on SkillCorner (17/20) and +0.0046 on Metrica. The World Cup figures for versions 7, 8, 9 and 11 to 13 were computed without the TCN's test-time averaging, and the fold models of the fine-tuned MS-TCNs for versions 8 and 9 were trained on different hardware from the shipped ones. For versions 11 to 13 this means that the stacker, which was trained on averaged TCN outputs, read TCN outputs without averaging on the World Cup games.
 
 Version 7 was also confirmed once on 13 FOOTPASS games that no model had been scored on before: 0.8046 against 0.7744 for version 6, a gain of +0.0302 ± 0.0045 that held in all 13 games.
 
-### 3i. Model Size and Scaling Laws
+### 3j. Model Size and Scaling Laws
 
 Our final goal was to understand whether larger models would do better. Based on the success of the 19.3M pointer, we trained one model per size for each of our five model families. Four of the five ladders reach about 500 million parameters and the radar ladder stops at 11 million. A 1 billion parameter TCN was also trained and only partly scored, so it is left out. Each was trained on the first World Cup fold and scored on its 12 held-out games, on SkillCorner and on Metrica.
 
@@ -375,7 +421,7 @@ The second experiment trained for half the usual number of passes, which the stu
 
 The data-size experiment (training on a quarter and a half of the games) was not run.
 
-### 3j. What We Tried and Dropped
+### 3k. What We Tried and Dropped
 
 | Idea | Result | Why we dropped it |
 |---|---|---|
@@ -390,7 +436,7 @@ The data-size experiment (training on a quarter and a half of the games) was not
 | 8 degradation seeds per game in place of 3 | +0.0107 against +0.0099 | Reproduced the gain and added nothing |
 | A first Metrica fine-tune of the plain MS-TCN and the 0.8M pointer (10 Nov) | MS-TCN failed its SkillCorner check, pointer fell short of its Metrica bar | Superseded by the version 9 fine-tune (section 3e) |
 | A SkillCorner fine-tuned 19.3M pointer inside the ensemble | Bundesliga −0.0077 ± 0.0015, SkillCorner +0.0068 ± 0.0015 | No net gain |
-| Models larger than those shipped (section 3i) | Flat or worse on SkillCorner | Data-limited |
+| Models larger than those shipped (section 3j) | Flat or worse on SkillCorner | Data-limited |
 | The 11M radar in place of the shipped radar | Bundesliga −0.0000 ± 0.0021, SkillCorner +0.0001 ± 0.0014 | Better alone, no gain in the ensemble |
 | Metrica pooled into the TCN, MS-TCN and pointer | Held-out Metrica +0.0020, Bundesliga −0.0042 ± 0.0017 | The Metrica gain disappeared in the ensemble |
 | A SkillCorner fine-tuned 20M MS-TCN | SkillCorner −0.0088 ± 0.0037 against the fine-tuned 2.6M | The smaller model fine-tuned better |
@@ -414,7 +460,7 @@ The data-size experiment (training on a quarter and a half of the games) was not
 
 The complete list up to version 8, with about 20 more entries, is in the detailed document.
 
-### 3k. What the Models Learned
+### 3l. What the Models Learned
 
 To understand what the models rely on, we trained two small decision trees the same way. They score 0.65 to 0.69, below the ensemble, and their rules are readable:
 
@@ -425,7 +471,7 @@ The pointer looks only at the players nearest the ball and is our best single mo
 
 ## 4. Impact
 
-Our approach shows that ball possession can be predicted on automatic tracking without any labels from the match itself. Open labelled games, degraded to look like the target tracking, were enough to raise spellF1 against the raw Bundesliga flag from 0.37 for the hand-written pipeline to 0.69 for version 6. On our fine selection score the first submission scored 0.662, version 8 scored 0.762, version 9 scored 0.759, version 11 scored 0.767 and the final version 12 scored 0.7735. This is useful for any club or analyst who has tracking from a new provider and no labels for it.
+Our approach shows that ball possession can be predicted on automatic tracking without any labels from the match itself. Open labelled games, degraded to look like the target tracking, were enough to raise spellF1 against the raw Bundesliga flag from 0.37 for the hand-written pipeline to 0.69 for version 6. On our fine selection score the first submission scored 0.662, version 8 scored 0.762, version 9 scored 0.759, version 11 scored 0.767, version 12 scored 0.7735 and the final version 13 scored 0.7739. Version 13's member weights were chosen on that benchmark among others. This is useful for any club or analyst who has tracking from a new provider and no labels for it.
 
 The degradation simulator and the leave-one-game-out benchmarks can be reused for other tracking tasks. The scaling study gives a practical guide for this kind of data: with about 50 labelled games, models above 20 million parameters gave no benefit on SkillCorner, our benchmark from a different provider. Fine-tuning on that provider's own games moved its score more than any change in size did.
 
@@ -437,15 +483,16 @@ We cannot say for certain that these results will hold on the hidden match, for 
 
 - **The benchmarks are proxies.** Both the degradation and the control threshold are inferred. If the truth were coarser after all, with a 2 second threshold, our move to fine-grained output would cost about 0.04.
 - **We reused a small benchmark.** Model weights never see the game they are scored on. However, for three weeks every recipe and rule was chosen on the same 7 Bundesliga games and later on SkillCorner as well, so the absolute scores are optimistic. An independent reviewer's fully nested re-selection of an earlier step kept about half of its gain.
-- **Versions 8, 9, 11 and 12 have no once-only confirmation.** The 16 held-out World Cup games and the third Metrica game were spent on version 6, and the 13 FOOTPASS games on version 7.
-- **SkillCorner and Metrica are training data in versions 9, 11 and 12.** The MS-TCN is fine-tuned on both and the stacker is trained on Metrica. The SkillCorner scores are cross-validated and the Metrica scores are leave-one-game-out. Metrica is no longer an independent check, and it is three games.
+- **Versions 8, 9 and 11 to 13 have no once-only confirmation.** The 16 held-out World Cup games and the third Metrica game were spent on version 6, and the 13 FOOTPASS games on version 7.
+- **SkillCorner and Metrica are training data in versions 9 and 11 to 13.** The MS-TCN is fine-tuned on both and the stacker is trained on Metrica. The SkillCorner scores are cross-validated and the Metrica scores are leave-one-game-out. Metrica is no longer an independent check, and it is three games.
 - **Version 11's gains are optimistic.** Both of its parts were chosen on the same four benchmarks that then confirmed their combination. The new-feature variant was the best of four on one World Cup fold, SkillCorner and two Metrica games. Only the Bundesliga games and the other three World Cup folds took no part in that choice, and on those the new features gained +0.0071 ± 0.0014 and +0.0045.
 - **Version 12's columns were chosen on the benchmarks that then scored it, under a rule we changed after seeing results.** Our first rule kept a group out if it lost on SkillCorner. We replaced it at 20:52 CST on 13 Nov, after seeing two groups lose there, with a rule that needs gains on two of three benchmarks. Every new group lost on SkillCorner in the TCN, and version 12 as a whole did not improve on SkillCorner (−0.0002 ± 0.0025, 10 of 20 games won). SkillCorner is the benchmark whose ball statistics most resemble the match's. The step from version 11 to version 12 rests on the Bundesliga, the World Cup games and three Metrica games. Only the Bundesliga games and three of the four World Cup folds took no part in choosing the columns.
-- **The stacker leans on one model.** In version 12, 87.5% of its split gain comes from the MS-TCN's probabilities (pointer 5.6%, TCN 3.5%, radar 3.3%), and in version 11 it was 89%. In version 11, on the Bundesliga and SkillCorner, its addition on top of the new features could not be told from zero (+0.0012 ± 0.0016 and +0.0013 ± 0.0013). In version 12 it adds +0.0018 ± 0.0008 on the Bundesliga and +0.0044 ± 0.0011 on SkillCorner, where the new models without it lose to version 11.
+- **Version 13's member weights were chosen after seeing results, against our own rule.** The rule written before the weight search asked for a nested gain above 2 standard errors on two benchmarks and no loss beyond 1. No weighting met it, and 1 3 1 2 3 gave −3.21 standard errors on the World Cup games when picked without them. Its gain over version 12 is on Metrica's three games only (+0.0113 ± 0.0004), and it loses on the World Cup games (−0.0022 ± 0.0007). The two members it counts three times, the MS-TCN and the stacker, are both trained on Metrica, which may be why it favours Metrica; we did not test this. The search added 4,088 comparisons on benchmarks already reused for every choice, and version 13's scores are in-sample for it.
+- **The stacker leans on one model.** In versions 12 and 13 (the same stacker), 87.5% of its split gain comes from the MS-TCN's probabilities (pointer 5.6%, TCN 3.5%, radar 3.3%), and in version 11 it was 89%. In version 11, on the Bundesliga and SkillCorner, its addition on top of the new features could not be told from zero (+0.0012 ± 0.0016 and +0.0013 ± 0.0013). In version 12 it adds +0.0018 ± 0.0008 on the Bundesliga and +0.0044 ± 0.0011 on SkillCorner, where the new models without it lose to version 11.
 - **The new columns look partly different on the match.** We compared 203 statistics of the 29 columns between the match and the benchmark games, without labels. 170 lie inside the range of at least one benchmark and 33 lie outside all four. The match's ball acceleration has narrower tails than any benchmark game: its 99th percentile is 27.5 m/s² against 33.5 to 59.9, so our simulated degradation produces larger spikes than the real tracking has. In 1 to 2% of match frames a team has fewer than 3 tracked players and its hull area is zero, which never happens on the benchmarks. We cannot measure what this costs without labels. For the 58 columns added in version 12 we compared only some ball statistics (section 3g). On those the match is close to the SkillCorner benchmark and far from our degraded training games.
-- **The decoder setting was not chosen again for versions 11 and 12.** It is the setting that versions 8 and 9 took from a grid on the Bundesliga.
+- **The decoder setting was not chosen again for versions 11 to 13.** It is the setting that versions 8 and 9 took from a grid on the Bundesliga. Version 13 changes only the member weights.
 - **Version 11's new models were trained on a rented cloud GPU**, and all their benchmark outputs were computed there on Linux. Version 12's models were trained on the Mac's GPU and scored on the Mac's CPU. For version 12 we compared the full five-member pipeline with the benchmark scoring code on one Bundesliga game at three degradation seeds, and the labels were identical. We did not repeat this on Metrica or SkillCorner games (section 6).
-- **The match looks different from our training games.** A classifier separates the match from every Bundesliga game with an AUC of 0.99. The models also predict fewer possessions on the match (271 per 90 minutes for version 12, 276 for version 11, 273 for version 9, 277 for version 8) than on SkillCorner (283.5 for version 12) or the Bundesliga (309.2). On the World Cup games version 12 predicts 256.9 per 90 minutes, where the labels have 313.5.
+- **The match looks different from our training games.** A classifier separates the match from every Bundesliga game with an AUC of 0.99. The models also predict fewer possessions on the match (262.6 per 90 minutes for version 13, 271 for version 12, 276 for version 11, 273 for version 9, 277 for version 8) than on SkillCorner (283.5 for version 12) or the Bundesliga (309.2). On the World Cup games version 12 predicts 256.9 per 90 minutes, where the labels have 313.5.
 - **The pointer is a risk on sparse broadcast tracking.** On nine matches of SkillCorner's 2019/20 open broadcast tracking, which has about 4.5 visible players per team and machine-made labels, the version 7 ensemble scored −0.0244 ± 0.0050 (0/9) against the same ensemble without the pointer. The match's tracking is denser than that, and we kept the pointer.
 - **One match is a single noisy draw.** The game-to-game spread of spellF1 is about 0.025, which is larger than most of the gains in this document.
 - **Short and contested possessions are still missed.** About 27% of true possessions were missed on the Bundesliga benchmark, most often those under 2 seconds. This was measured for an earlier version.
@@ -453,9 +500,9 @@ We cannot say for certain that these results will hold on the hidden match, for 
 
 ### 4b. Disclosures
 
-- **Decision rules.** From round 4 on, the rule for accepting a change was written before the results. The rule files are copied verbatim in `docs/prereg/`. We changed the round 5 rule while round 4 was running, after some results had been seen. The change made the rule more conservative. The recipe that built version 7 was written after some of its parts had already been scored. The pointer was admitted on its second variant, after the first failed its check. For version 9 the rule was changed after results: the Metrica-inclusive MS-TCN and pointer had failed the rule written for them, and we then adopted a rule that gives held-out Metrica games more weight (a gain of at least +0.005 there, with at most −0.005 on the Bundesliga and −0.010 on SkillCorner). Under that rule one ensemble failed on Metrica, a second failed on SkillCorner by 0.0007, and version 9 passed. Our written note said the version 9 model would be scored only if that second ensemble passed. We scored it anyway, which is outside that note. The version 9 fine-tune used the learning rate of the earlier Metrica fine-tune (5e-5), where a literal reading of the recipe gives 5e-6. The byte-identity part of the rule was checked afterwards and passed (section 6). For version 11 the three rules (new features, stacker, combination) were written before their results and were not changed. The stacker on version 9's models was one of six stacker variants scored that morning. It failed the rule written for that comparison, which asked for a gain over candidate version 10 on the large benchmarks, and it was taken up afterwards because it was the only variant ahead of version 9 on all four benchmarks. We chose version 11 as the submission on 13 Nov, after it passed its rule. Version 11 was published on 14 Nov and then replaced by version 12. For version 12 the screening rule for the new columns was changed after results (section 3g): at 20:52 CST on 13 Nov, after two groups had lost on SkillCorner, we adopted a rule that admits a group that gains on two of three benchmarks. The relative-movement group in the MS-TCN was included although it passed only on Metrica. The rule file said before the version 12 stacker was fitted that no rule would decide between versions 11 and 12, and we chose version 12 on 14 Nov after seeing its scores. For the match-like training ball, two statistics were dropped from the written fit after the fit had run and before any data was built; the rule file records this.
-- **Scale of the search.** We compared 74 vote sets, 72 decoder variants, about 40 adaptation variants and 49 architecture screens. At that scale the ranking among the top candidates is noise, which is why version 7 was built one slot at a time under a written recipe. After version 8 we also scored about 20 size-study models, 4 Metrica-inclusive single models, 7 further ensembles and 3 single-slot swaps. On 13 Nov we scored 4 stackers, 6 stacker variants, 2 augmented fine-tunes, 4 feature variants in a screen, 6 ensembles with new-feature models, version 11, and 4 fusion rules for the broadcast feed on 2 ensembles each. On 13 and 14 Nov we also screened 13 variants with new input columns (three seeds each), decoded 143 member combinations on the screening benchmarks and 59 on the full benchmarks, 6 control ensembles for the attention model and 11 decodings with members counted more than once, trained 4 training-ball variants of the TCN, scored version 12 with and without its stacker, and scored 2 more fusion rules for the broadcast feed.
-- **The public 5 minutes.** They were never used for training, tuning or selection. Finished versions, and later some single models, were scored on the window out of curiosity on seven occasions between 9 and 13 Nov. The first three deviated from our own rule of not looking. The later ones were announced in the rule file beforehand. The seventh, on 13 Nov, scored versions 9 and 11 after version 11 had been chosen, and was announced in the rule file beforehand. The window holds 17 true possessions, so one or two possessions move the score by several points.
+- **Decision rules.** From round 4 on, the rule for accepting a change was written before the results. The rule files are copied verbatim in `docs/prereg/`. We changed the round 5 rule while round 4 was running, after some results had been seen. The change made the rule more conservative. The recipe that built version 7 was written after some of its parts had already been scored. The pointer was admitted on its second variant, after the first failed its check. For version 9 the rule was changed after results: the Metrica-inclusive MS-TCN and pointer had failed the rule written for them, and we then adopted a rule that gives held-out Metrica games more weight (a gain of at least +0.005 there, with at most −0.005 on the Bundesliga and −0.010 on SkillCorner). Under that rule one ensemble failed on Metrica, a second failed on SkillCorner by 0.0007, and version 9 passed. Our written note said the version 9 model would be scored only if that second ensemble passed. We scored it anyway, which is outside that note. The version 9 fine-tune used the learning rate of the earlier Metrica fine-tune (5e-5), where a literal reading of the recipe gives 5e-6. The byte-identity part of the rule was checked afterwards and passed (section 6). For version 11 the three rules (new features, stacker, combination) were written before their results and were not changed. The stacker on version 9's models was one of six stacker variants scored that morning. It failed the rule written for that comparison, which asked for a gain over candidate version 10 on the large benchmarks, and it was taken up afterwards because it was the only variant ahead of version 9 on all four benchmarks. We chose version 11 as the submission on 13 Nov, after it passed its rule. Version 11 was published on 14 Nov and then replaced by version 12. For version 12 the screening rule for the new columns was changed after results (section 3g): at 20:52 CST on 13 Nov, after two groups had lost on SkillCorner, we adopted a rule that admits a group that gains on two of three benchmarks. The relative-movement group in the MS-TCN was included although it passed only on Metrica. The rule file said before the version 12 stacker was fitted that no rule would decide between versions 11 and 12, and we chose version 12 on 14 Nov after seeing its scores. Version 12 was published on 14 Nov and replaced the same day by version 13. For version 13 the rule for the member-weight search was written before any run (section 3h). No weighting passed it, the analysis said that none was worth proposing, and we chose 1 3 1 2 3 anyway after seeing the results. This choice goes against our own written rule. For the match-like training ball, two statistics were dropped from the written fit after the fit had run and before any data was built; the rule file records this.
+- **Scale of the search.** We compared 74 vote sets, 72 decoder variants, about 40 adaptation variants and 49 architecture screens. At that scale the ranking among the top candidates is noise, which is why version 7 was built one slot at a time under a written recipe. After version 8 we also scored about 20 size-study models, 4 Metrica-inclusive single models, 7 further ensembles and 3 single-slot swaps. On 13 Nov we scored 4 stackers, 6 stacker variants, 2 augmented fine-tunes, 4 feature variants in a screen, 6 ensembles with new-feature models, version 11, and 4 fusion rules for the broadcast feed on 2 ensembles each. On 13 and 14 Nov we also screened 13 variants with new input columns (three seeds each), decoded 143 member combinations on the screening benchmarks and 59 on the full benchmarks, 6 control ensembles for the attention model and 11 decodings with members counted more than once, trained 4 training-ball variants of the TCN, scored version 12 with and without its stacker, and scored 2 more fusion rules for the broadcast feed. On 14 Nov we decoded 1,023 member weightings of version 12 on the four benchmarks (4,088 benchmark-level comparisons), from which version 13 was chosen. The same day we also ran 17 decoder settings meant to cut false possessions, none of which passed its rule, and label-free tests of the video's audio, from which nothing entered the submission.
+- **The public 5 minutes.** They were never used for training, tuning or selection. Finished versions, and later some single models, were scored on the window out of curiosity on nine occasions between 9 and 14 Nov. The first three deviated from our own rule of not looking. The later ones were announced in the rule file beforehand. The seventh, on 13 Nov, scored versions 9 and 11 after version 11 had been chosen, and was announced in the rule file beforehand. The eighth, on 14 Nov, scored version 12 after it had been chosen, verified and published, and was also announced in the rule file beforehand. The ninth, later on 14 Nov, scored version 13 after it had been chosen and had passed its reproducibility checks, and was announced in the same way. The window holds 17 true possessions, so one or two possessions move the score by several points.
 
 | Scored on the public window | spellF1 | macroF1 | Possessions predicted |
 |---|---|---|---|
@@ -470,8 +517,10 @@ We cannot say for certain that these results will hold on the hidden match, for 
 | The same three with Metrica pooled in | 0.5474, 0.7568, 0.6556 | 0.7643, 0.8555, 0.7588 | 21, 20, 19 |
 | Version 9 (13 Nov) | 0.6270 | 0.8331 | 20 |
 | Version 11 (13 Nov) | 0.6444 | 0.7962 | 19 |
+| Version 12 (14 Nov) | 0.6256 | 0.8333 | 22 |
+| Version 13 (14 Nov) | 0.6595 | 0.8332 | 20 |
 
-The newer versions score below version 6 on these 17 possessions while beating it on every large benchmark. We report this as it is. No version was chosen, changed or rejected because of the window. The pooled Metrica ensemble scored above version 8 on the window and was rejected by its benchmark rule, which was written before the window was scored. Version 9 was not scored on the window until 13 Nov, two days after it became the submission. Version 11 was scored on it once, after the user had confirmed it as the intended submission, and that score played no part in any choice. Version 12 was not scored on the window.
+Versions 7 to 12 score below version 6 on these 17 possessions while beating it on every large benchmark. We report this as it is. No version was chosen, changed or rejected because of the window. The pooled Metrica ensemble scored above version 8 on the window and was rejected by its benchmark rule, which was written before the window was scored. Version 9 was not scored on the window until 13 Nov, two days after it became the submission. Version 11 was scored on it once, after the user had confirmed it as the intended submission, and that score played no part in any choice. Version 12 was scored on it once, on 14 Nov, after it had been published as the submission. It scored 0.6256, below versions 2, 6, 9 and 11 on the window, and we kept it at the time. Version 13 replaced it later that day for the reasons in section 3h, before version 13 had been scored on the window. Version 13 was then scored once, after it had passed its reproducibility checks: 0.6595, which is two fewer false possessions than version 12 on a window of 17. That score came after the choice and is not evidence for it.
 
 - **FOOTPASS.** It was used locally only. No FOOTPASS data, labels or weights are in this repository, and no shipped weights were trained on it.
 - **GPU scoring in the size study.** The benchmark scores of the larger models were computed on a GPU. Each family's GPU path was checked to give the same labels as the CPU path on sample games. The 178M and 498M pointer rows were scored on the GPU and their CPU checks were not completed.
@@ -487,7 +536,8 @@ The newer versions score below version 6 on these 17 possessions while beating i
 ├── make_submission.py              # regenerates the submission CSV
 ├── requirements-submission.txt     # pinned environment for the submission
 ├── candidates/
-│   ├── final_v12/                  # version 12, the submission
+│   ├── final_v13/                  # version 13, the submission (version 12 with member weights in the decoder)
+│   ├── final_v12/                  # version 12, and the stacker file that version 13 also uses
 │   ├── newfeat_v12/                # the 87 new input columns of version 12, and the TCN and MS-TCN that read them
 │   ├── final_v11/                  # version 11
 │   ├── acc_shape/                  # the 29 new input columns of version 11, and its TCN and MS-TCN
@@ -518,13 +568,26 @@ python make_submission.py
 python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 ```
 
-The expected sha256 is `eb249aa50cc9ab989514e982b9bfefabc3143f52b996811bb209f9429f5d849f`. The earlier versions are still available: version 11 with `python make_submission.py --candidate final_v11 --out v11.csv` (sha256 `9ba4f14d75d872284ecd76cd1c6c6308ad5bf7f9d6c9fedcf3d2b2ce46586938`), version 9 with `python make_submission.py --candidate final_f4spm --out v9.csv` (sha256 `9926b7c56557a7aedb39597b7c2f52b37c82028d01b394021a360bb3aabcb3e2`) and version 8 with `--candidate final_f4sp --out v8.csv` (sha256 `60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57`).
+The expected sha256 is `697fae9f6c9dfb832fadf0ead231be1db3592b1b078b2e56fd5a28ece4215487`. The earlier versions are still available: version 12 with `python make_submission.py --candidate final_v12 --out v12.csv` (sha256 `eb249aa50cc9ab989514e982b9bfefabc3143f52b996811bb209f9429f5d849f`), version 11 with `python make_submission.py --candidate final_v11 --out v11.csv` (sha256 `9ba4f14d75d872284ecd76cd1c6c6308ad5bf7f9d6c9fedcf3d2b2ce46586938`), version 9 with `python make_submission.py --candidate final_f4spm --out v9.csv` (sha256 `9926b7c56557a7aedb39597b7c2f52b37c82028d01b394021a360bb3aabcb3e2`) and version 8 with `--candidate final_f4sp --out v8.csv` (sha256 `60fc793e90f1df6ce5dda4b2140988fdfd1c1cfc4ee01950b10c429186dd6c57`).
 
 (Linux users in a slim container also need `apt-get install libgomp1` for LightGBM.)
 
-The submission loads the weights in this repository only (about 95 MB; version 12's three new weight files are about the size of the version 11 files they replace), needs no network and never touches the ground truth.
+The submission loads the weights in this repository only (about 95 MB; version 12's three new weight files are about the size of the version 11 files they replace, and version 13 adds none), needs no network and never touches the ground truth.
 
-**What has been checked for version 12 (14 Nov).** Every run below wrote exactly the same file, with the sha256 above, and the file passes `evaluation/validate_submission.py`.
+**What has been checked for version 13.** Every run below was made on 14 Nov and wrote exactly the same file (sha256 `697fae9f…215487`), and the file passes `evaluation/validate_submission.py`.
+
+| Check | Platform | Run time | Peak memory of the main process |
+|---|---|---|---|
+| `make_submission.py`, twice in a row | macOS arm64 (Accelerate), 1 thread | 4.1 and 4.1 minutes | 6.0 and 6.0 GB |
+| The same steps with 1, 2 and 8 threads, through a driver outside the repository | macOS arm64 | 4.1, 3.9 and 3.9 minutes | 5.8, 5.2 and 5.9 GB |
+| Fresh clone in a new environment | macOS arm64 | 4.4 minutes | 6.0 GB |
+| The same clone in a `python:3.14.6-slim` container with `libgomp1` | Linux arm64 (OpenBLAS) | 10.3 minutes | 3.4 GB |
+| The same clone in an x86-64 container under Rosetta emulation | Linux x86-64 | 18.8 minutes | 3.3 GB |
+| The numpy pointer backend (`MTAH_PTR_BACKEND=numpy`) | macOS arm64 | 20.1 minutes | 6.8 GB |
+
+The fresh clone was the previous commit (`59b26af`) plus version 13's two code files, `make_submission.py` and `candidates/final_v13/pipeline.py`, copied in before version 13 was committed. Live and offline decoding gave identical labels on the Bundesliga game J03WN1 for 3 seeds, and the five members' live outputs were bitwise equal to version 12's. A second, independent decode of version 12's saved member outputs with the weights 1 3 1 2 3 also wrote the same file. Not checked: native x86-64 hardware, live against offline on Metrica or SkillCorner.
+
+**What has been checked for version 12 (14 Nov).** Every run below wrote exactly the same file, version 12's (sha256 `eb249aa5…5d849f`), and the file passes `evaluation/validate_submission.py`.
 
 | Check | Platform | Run time | Peak memory of the main process |
 |---|---|---|---|
@@ -562,7 +625,7 @@ Rebuilding the models from the open data is described in `candidates/README.md` 
 - FOOTPASS / SoccerNet PC-BAS 2026: arXiv 2511.16183, access-gated.
 - SoccerTrack v2, release v1.2, CC BY 4.0.
 
-References for section 3i:
+References for section 3j:
 
 - Kaplan, McCandlish, Henighan, Brown, Chess, Child, Gray, Radford, Wu and Amodei (2020). *Scaling Laws for Neural Language Models.* arXiv:2001.08361.
 - Hernandez, Brown, Conerly, DasSarma, Drain, El-Showk, Elhage, Hatfield-Dodds, Henighan, Hume, Johnston, Mann, Olah, Olsson, Amodei, Joseph, Kaplan and McCandlish (2022). *Scaling Laws and Interpretability of Learning from Repeated Data.* arXiv:2205.10487.

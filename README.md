@@ -9,7 +9,10 @@
 > python evaluation/validate_submission.py evaluation/results/camp_nou_limits.csv
 > ```
 >
-> The submission is [`candidates/final_v12`](candidates/final_v12/README.md) (v12). It is v11 ([`candidates/final_v11`](candidates/final_v11/README.md), published on 14 Nov and then replaced) with the TCN and the MS-TCN
+> The submission is [`candidates/final_v13`](candidates/final_v13/README.md) (v13). It is v12 ([`candidates/final_v12`](candidates/final_v12/README.md), published on 14 Nov and replaced the same day)
+> with unequal member weights in the decoder: 1 3 1 2 3 for the TCN, MS-TCN, radar, pointer and stacker. Nothing is retrained.
+> We chose these weights after seeing benchmark results, and they failed the rule we wrote before the weight search
+> (see its README). v12 is v11 ([`candidates/final_v11`](candidates/final_v11/README.md), published on 14 Nov and then replaced) with the TCN and the MS-TCN
 > retrained on 87 extra input columns instead of 29 ([`newfeat_v12`](candidates/newfeat_v12)) and the stacker refitted on them. v11 itself is v9
 > ([`candidates/final_f4spm`](candidates/final_f4spm/README.md): v8, [`candidates/final_f4sp`](candidates/final_f4sp/README.md), with its MS-TCN also fine-tuned on Metrica's sample games)
 > with two changes: the TCN and the MS-TCN are retrained on 29 extra input columns (ball and player acceleration, ball turn angle,
@@ -24,12 +27,12 @@
 > a wide MS-TCN fine-tuned with the SkillCorner games and then the Metrica sample games added ([`nn_pff`](candidates/nn_pff/README.md)),
 > a ball radar ([`ball_radar_pff`](candidates/ball_radar_pff)) and a ball-centred possessor-pointer
 > network with 19.3M parameters ([`nn_pointer`](candidates/nn_pointer)). The pointer's forward pass runs in
-> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel), and the run of v12 took
-> about 4.5 minutes on one thread of a shared Apple M5 Max, with a peak of 6 GB of memory in the main process; without torch the pointer falls back to numpy,
-> which for v12 gave the same file in about 20 minutes.
-> Checked for v12 on 14 Nov, each run writing the same file (sha256 `eb249aa5…5d849f`): `make_submission.py` twice on macOS arm64, runs with 1, 2 and 8 threads,
+> PyTorch on the CPU (float64; `requirements-submission.txt` installs the CPU-only wheel). One run of v13 on a shared Apple M5 Max
+> (macOS arm64) took 246 s with a peak of 6.0 GB of memory in the main process and wrote sha256 `697fae9f…215487`. Checked for v13 on 14 Nov, each run writing that same file: `make_submission.py` twice on macOS arm64, runs with 1, 2 and 8 threads, a fresh clone in a new environment (the previous commit plus v13's two code files), a Linux arm64 container (10 minutes), a Linux x86-64 container under emulation (19 minutes) and the numpy pointer backend (20 minutes). Live and offline decoding agreed on a Bundesliga game for 3 seeds. Not checked: native x86-64 hardware.
+> Without torch the pointer falls back to numpy, which for v12 gave the same file in about 20 minutes.
+> v12 was checked on 14 Nov, each run writing the same file (sha256 `eb249aa5…5d849f`): `make_submission.py` twice on macOS arm64, runs with 1, 2 and 8 threads,
 > a fresh clone, a Linux arm64 container and a Linux x86-64 container under emulation. Native x86-64 hardware was not tested.
-> The four models' outputs and the stacker's are combined by expected-spellF1 decoding
+> The four models' outputs and the stacker's, weighted as above, are combined by expected-spellF1 decoding
 > ([`mbr_decode`](candidates/mbr_decode/README.md)) around the members' vote under the challenge's
 > controlled-possession rule, followed by dead ball before each kick-off. It uses no labels from the
 > provided game. v8 replaced [`candidates/final_f4b`](candidates/final_f4b/README.md) ("F4b", v7);
